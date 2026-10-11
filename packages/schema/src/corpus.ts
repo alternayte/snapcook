@@ -21,7 +21,9 @@ export const Ingredient = z.object({
   category: IngredientCategory,
   allergens: z.array(Allergen),
   default_unit: Unit,
+  /** Grams in one piece. Set for every ingredient that is counted. */
   grams_per_unit: z.number().positive().nullable(),
+  /** Millilitres that one gram occupies. Null means 1, as for water. */
   ml_per_unit: z.number().positive().nullable(),
   is_staple_default: z.boolean(),
   embedding: Embedding.nullable(),
