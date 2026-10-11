@@ -17,5 +17,9 @@
     "@types/bun": "1.4.2",
     "turbo": "2.11.7",
     "typescript": "~6.0.3"
+  },
+  "overrides": {
+    "react-native-screens": "~4.26.0",
+    "expo-constants": "~57.0.21"
   }
 }

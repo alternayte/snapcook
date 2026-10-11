@@ -1,0 +1,21 @@
+{
+  "expo": {
+    "name": "SnapCook",
+    "slug": "snapcook",
+    "version": "0.0.0",
+    "orientation": "portrait",
+    "scheme": "snapcook",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": false
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": ["expo-router", "expo-status-bar", "expo-splash-screen"],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

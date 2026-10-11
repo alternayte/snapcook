@@ -10,3 +10,8 @@ dist/
 .expo/
 *.tsbuildinfo
 data/
+web-build/
+apps/mobile/ios/
+apps/mobile/android/
+.DS_Store
+expo-env.d.ts
