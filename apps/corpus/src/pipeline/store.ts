@@ -21,20 +21,40 @@ export async function latest<S extends z.ZodType>(
   return row ? { attempt: row.attempt, value: shape.parse(row.payload) } : undefined;
 }
 
-/** Stores a stage's output as the next attempt for the dish. */
-export async function save(db: Db, candidateId: string, stage: PipelineStage, payload: object) {
-  const [last] = await db
-    .select({ attempt: dishStageOutputs.attempt })
-    .from(dishStageOutputs)
-    .where(and(eq(dishStageOutputs.candidate_id, candidateId), eq(dishStageOutputs.stage, stage)))
-    .orderBy(desc(dishStageOutputs.attempt))
-    .limit(1);
-  await db.insert(dishStageOutputs).values({
+/**
+ * Stores a stage's output for a dish. The write stage takes the next attempt number. Every later
+ * stage passes the attempt of the draft it worked on, so a result is tied to one draft.
+ */
+export async function save(
+  db: Db,
+  candidateId: string,
+  stage: PipelineStage,
+  payload: object,
+  attempt?: number,
+) {
+  let next = attempt;
+  if (next === undefined) {
+    const [last] = await db
+      .select({ attempt: dishStageOutputs.attempt })
+      .from(dishStageOutputs)
+      .where(and(eq(dishStageOutputs.candidate_id, candidateId), eq(dishStageOutputs.stage, stage)))
+      .orderBy(desc(dishStageOutputs.attempt))
+      .limit(1);
+    next = (last?.attempt ?? 0) + 1;
+  }
+  const row = {
     candidate_id: candidateId,
     stage,
-    attempt: (last?.attempt ?? 0) + 1,
+    attempt: next,
     payload: payload as Record<string, unknown>,
-  });
+  };
+  await db
+    .insert(dishStageOutputs)
+    .values(row)
+    .onConflictDoUpdate({
+      target: [dishStageOutputs.candidate_id, dishStageOutputs.stage, dishStageOutputs.attempt],
+      set: { payload: row.payload },
+    });
 }
 
 export type Selection = { batch?: number; dish?: string; limit?: number };

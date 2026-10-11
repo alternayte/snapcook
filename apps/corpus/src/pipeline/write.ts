@@ -13,6 +13,9 @@ import { latest, save } from "./store";
 
 export const BASE_SERVINGS = 4;
 
+// The first draft plus one rewrite. A draft that still fails after that needs a person.
+const MAX_ATTEMPTS = 2;
+
 /** The canonical ingredient names, grouped by category, as the writer sees them. */
 export async function ingredientList(db: Db) {
   const rows = await db
@@ -51,6 +54,7 @@ export async function write(
       findings.push(...review.value.fixes);
     }
     if (findings.length === 0) return "skipped";
+    if (draft.attempt >= MAX_ATTEMPTS) return "blocked: still failing after the rewrite";
   }
 
   const prompt = [

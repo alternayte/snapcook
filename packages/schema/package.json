@@ -10,7 +10,8 @@
     }
   },
   "scripts": {
-    "typecheck": "tsc -b"
+    "typecheck": "tsc -b",
+    "test": "bun test"
   },
   "dependencies": {
     "zod": "4.6.6"
