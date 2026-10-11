@@ -1,20 +1,20 @@
 #!/usr/bin/env bun
 import { grid } from "./grid/stage";
+import { stage } from "./pipeline/stage";
 import { smoke } from "./smoke";
 
-type Stage = (args: string[]) => Promise<void>;
+type Command = (args: string[]) => Promise<void>;
 
-const stages: Record<string, Stage> = { grid, smoke };
+const commands: Record<string, Command> = { grid, smoke, stage };
 
 const [name, ...args] = process.argv.slice(2);
-const stage = name ? stages[name] : undefined;
+const command = name ? commands[name] : undefined;
 
-if (!stage) {
-  const known = Object.keys(stages).join(", ") || "none";
+if (!command) {
   console.error(
-    `usage: corpus <stage> [args]\nunknown stage: ${name ?? "(missing)"}\nstages: ${known}`,
+    `usage: corpus <command> [args]\nunknown command: ${name ?? "(missing)"}\ncommands: ${Object.keys(commands).join(", ")}`,
   );
   process.exit(2);
 }
 
-await stage(args);
+await command(args);

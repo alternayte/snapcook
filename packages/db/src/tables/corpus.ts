@@ -8,6 +8,7 @@ import {
   type FailureMode,
   IngredientCategory,
   IngredientRole,
+  PipelineStage,
   type Provenance,
   RecipeStatus,
   ReportKind,
@@ -201,6 +202,7 @@ export const dishCandidates = pgTable(
     time_band: text().notNull(),
     status: enumText(CandidateStatus).notNull().default("proposed"),
     batch: integer(),
+    recipe_id: uuid().references(() => recipes.id, { onDelete: "set null" }),
     similar_to: uuid().references((): AnyPgColumn => dishCandidates.id, { onDelete: "set null" }),
     embedding: embedding(),
     created_at: createdAt(),
@@ -208,5 +210,27 @@ export const dishCandidates = pgTable(
   (t) => [
     index("dish_candidates_cuisine_idx").on(t.cuisine),
     enumCheck("dish_candidates_status_check", t.status, CandidateStatus.options),
+  ],
+);
+
+export const dishStageOutputs = pgTable(
+  "dish_stage_outputs",
+  {
+    id: id(),
+    candidate_id: uuid()
+      .notNull()
+      .references(() => dishCandidates.id, { onDelete: "cascade" }),
+    stage: enumText(PipelineStage).notNull(),
+    attempt: integer().notNull(),
+    payload: jsonb().$type<Record<string, unknown>>().notNull(),
+    created_at: createdAt(),
+  },
+  (t) => [
+    unique("dish_stage_outputs_candidate_stage_attempt_unique").on(
+      t.candidate_id,
+      t.stage,
+      t.attempt,
+    ),
+    enumCheck("dish_stage_outputs_stage_check", t.stage, PipelineStage.options),
   ],
 );

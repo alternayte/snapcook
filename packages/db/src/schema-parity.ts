@@ -34,6 +34,7 @@ export const parity: {
   recipeDeviceVariants: Same<Row<"recipeDeviceVariants">, S.RecipeDeviceVariant>;
   recipeReports: Same<Row<"recipeReports">, S.RecipeReport>;
   dishCandidates: Same<Row<"dishCandidates">, S.DishCandidate>;
+  dishStageOutputs: Same<Row<"dishStageOutputs">, S.DishStageOutput>;
 } = {
   users: true,
   households: true,
@@ -59,4 +60,5 @@ export const parity: {
   recipeDeviceVariants: true,
   recipeReports: true,
   dishCandidates: true,
+  dishStageOutputs: true,
 };

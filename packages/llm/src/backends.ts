@@ -1,7 +1,13 @@
 import { generateText, type LanguageModel, type ModelMessage, Output } from "ai";
 import { z } from "zod";
 
-export type StructuredInput = { system?: string; prompt?: string; messages?: ModelMessage[] };
+export type StructuredInput = {
+  system?: string;
+  prompt?: string;
+  messages?: ModelMessage[];
+  /** Let the model search and read the web before it answers. Not every backend can. */
+  web?: boolean;
+};
 
 export type StructuredResult = {
   object: unknown;
@@ -21,7 +27,8 @@ export type StructuredBackend = {
 export function aiSdkBackend(model: Exclude<LanguageModel, string>): StructuredBackend {
   return {
     model: model.modelId,
-    async generate(input, schema) {
+    async generate({ web, ...input }, schema) {
+      if (web) throw new Error(`${model.modelId} cannot browse the web through this backend`);
       const result = await generateText({
         model,
         output: Output.object({ schema }),
@@ -110,14 +117,21 @@ export function claudeCodeBackend(model: string): StructuredBackend {
           "--system-prompt",
           input.system ?? "Answer with the requested JSON only.",
           "--tools",
-          "",
+          input.web ? "WebSearch,WebFetch" : "",
+          ...(input.web ? ["--allowedTools", "WebSearch", "WebFetch"] : []),
           "--setting-sources",
           "",
           "--strict-mcp-config",
           "--disable-slash-commands",
           "--no-session-persistence",
         ],
-        { cwd: "/", stdout: "pipe", stderr: "pipe", timeout: CLAUDE_CODE_TIMEOUT_MS },
+        {
+          cwd: "/",
+          stdin: "ignore",
+          stdout: "pipe",
+          stderr: "pipe",
+          timeout: CLAUDE_CODE_TIMEOUT_MS,
+        },
       );
       const [stdout, stderr, code] = await Promise.all([
         new Response(proc.stdout).text(),

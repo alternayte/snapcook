@@ -181,6 +181,8 @@ export const DishCandidate = z.object({
   status: CandidateStatus,
   /** The writing batch this dish is assigned to. Null until it is selected. */
   batch: z.number().int().positive().nullable(),
+  /** The recipe this dish became, once a draft passed review. */
+  recipe_id: Id.nullable(),
   /** An earlier candidate this one closely resembles, for the person pruning to judge. */
   similar_to: Id.nullable(),
   embedding: Embedding.nullable(),

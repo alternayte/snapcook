@@ -36,6 +36,13 @@
       "when": 1791757992080,
       "tag": "0004_candidate_batch",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1791758115537,
+      "tag": "0005_pipeline",
+      "breakpoints": true
     }
   ]
 }

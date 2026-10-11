@@ -108,7 +108,7 @@ export function createLlm({ models, record }: LlmDeps) {
 
     /** Answers a prompt as an object of the given schema. `review` uses the second model family. */
     structured<S extends z.ZodType>(
-      prompt: { system?: string; prompt: string },
+      prompt: { system?: string; prompt: string; web?: boolean },
       schema: S,
       ctx: CallContext & { role?: "adapt" | "review" | "write" },
     ) {

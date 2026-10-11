@@ -12,8 +12,8 @@ test("two processes that start together both finish migrating an empty database"
   const tables = await pool.query(
     "select count(*)::int as n from information_schema.tables where table_schema = 'public' and table_type = 'BASE TABLE'",
   );
-  // 23 plain tables, the partitioned llm_calls parent, and two monthly partitions.
-  expect(tables.rows[0].n).toBe(26);
+  // 24 plain tables, the partitioned llm_calls parent, and two monthly partitions.
+  expect(tables.rows[0].n).toBe(27);
 });
 
 test("an llm_calls row lands in the partition for its month, and next month's exists", async () => {
