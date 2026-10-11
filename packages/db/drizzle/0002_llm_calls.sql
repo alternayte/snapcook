@@ -5,7 +5,7 @@ CREATE TABLE "llm_calls" (
 	"model" text NOT NULL,
 	"prompt_tokens" integer NOT NULL,
 	"completion_tokens" integer NOT NULL,
-	"cost_usd" numeric(12, 6) NOT NULL,
+	"cost_usd" numeric(16, 10) NOT NULL,
 	"latency_ms" integer NOT NULL,
 	"ok" boolean NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,

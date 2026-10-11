@@ -1,4 +1,6 @@
+import type { LlmCallRecord } from "@snapcook/schema";
 import { boolean, integer, pgTable, primaryKey, text, uuid } from "drizzle-orm/pg-core";
+import type { Db } from "./client";
 import { timestamptz, usd } from "./columns";
 
 // Partitioned by month on created_at. drizzle-kit cannot express partitioning, so the DDL is a
@@ -21,3 +23,8 @@ export const llmCalls = pgTable(
   },
   (t) => [primaryKey({ columns: [t.id, t.created_at] })],
 );
+
+/** The sink that packages/llm writes every model call to. */
+export const recordLlmCall = (db: Db) => async (call: LlmCallRecord) => {
+  await db.insert(llmCalls).values(call);
+};

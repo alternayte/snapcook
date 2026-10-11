@@ -10,9 +10,13 @@
     }
   },
   "scripts": {
-    "typecheck": "tsc -b"
+    "typecheck": "tsc -b",
+    "test": "bun test"
   },
   "dependencies": {
-    "@snapcook/schema": "workspace:*"
+    "@openrouter/ai-sdk-provider": "3.1.0",
+    "@snapcook/schema": "workspace:*",
+    "ai": "7.0.137",
+    "zod": "4.6.6"
   }
 }

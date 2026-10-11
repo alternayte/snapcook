@@ -12,6 +12,8 @@
   "dependencies": {
     "@snapcook/db": "workspace:*",
     "@snapcook/llm": "workspace:*",
-    "@snapcook/schema": "workspace:*"
+    "@snapcook/schema": "workspace:*",
+    "drizzle-orm": "0.45.4",
+    "zod": "4.6.6"
   }
 }

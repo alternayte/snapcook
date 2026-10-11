@@ -1,8 +1,9 @@
 #!/usr/bin/env bun
+import { smoke } from "./smoke";
 
 type Stage = (args: string[]) => Promise<void>;
 
-const stages: Record<string, Stage> = {};
+const stages: Record<string, Stage> = { smoke };
 
 const [name, ...args] = process.argv.slice(2);
 const stage = name ? stages[name] : undefined;
@@ -16,5 +17,3 @@ if (!stage) {
 }
 
 await stage(args);
-
-export {};

@@ -36,3 +36,7 @@ export const LlmCall = z.object({
   created_at: z.date(),
 });
 export type LlmCall = z.infer<typeof LlmCall>;
+
+/** What one model call reports for the log, before it has an id or a timestamp. */
+export const LlmCallRecord = LlmCall.omit({ id: true, created_at: true });
+export type LlmCallRecord = z.infer<typeof LlmCallRecord>;

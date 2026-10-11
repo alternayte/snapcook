@@ -12,7 +12,8 @@ export const createdAt = () => timestamptz().notNull().defaultNow();
 
 export const quantity = () => numeric({ precision: 10, scale: 2, mode: "number" });
 
-export const usd = () => numeric({ precision: 12, scale: 6, mode: "number" });
+// Ten decimals: one embedding request costs about a ten-millionth of a dollar.
+export const usd = () => numeric({ precision: 16, scale: 10, mode: "number" });
 
 /** A text column typed as a zod enum's values. Pair it with `enumCheck`. */
 export const enumText = <T extends string>(e: { options: T[] }) =>

@@ -20,11 +20,11 @@ test("an llm_calls row lands in the partition for its month, and next month's ex
   const now = new Date(Date.UTC(2031, 11, 15));
   await migrate(pool, now);
   await pool.query(
-    "insert into llm_calls (id, endpoint, model, prompt_tokens, completion_tokens, cost_usd, latency_ms, ok, created_at) values ($1, 'smoke', 'm', 1, 1, 0.000123, 5, true, $2)",
+    "insert into llm_calls (id, endpoint, model, prompt_tokens, completion_tokens, cost_usd, latency_ms, ok, created_at) values ($1, 'smoke', 'm', 1, 1, 0.00000011, 5, true, $2)",
     [Bun.randomUUIDv7(), now],
   );
   const december = await pool.query("select cost_usd from llm_calls_2031_12");
-  expect(december.rows).toEqual([{ cost_usd: "0.000123" }]);
+  expect(december.rows).toEqual([{ cost_usd: "0.0000001100" }]);
   const january = await pool.query("select to_regclass('llm_calls_2032_01') as t");
   expect(january.rows[0].t).toBe("llm_calls_2032_01");
 });

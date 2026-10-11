@@ -104,7 +104,7 @@ CREATE TABLE "adaptations" (
 	"controls" jsonb NOT NULL,
 	"output" jsonb NOT NULL,
 	"model" text NOT NULL,
-	"cost_usd" numeric(12, 6) NOT NULL,
+	"cost_usd" numeric(16, 10) NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "adaptations_household_input_hash_unique" UNIQUE("household_id","input_hash")
 );
@@ -217,7 +217,7 @@ CREATE TABLE "snaps" (
 	"storage_path" text NOT NULL,
 	"status" text DEFAULT 'queued' NOT NULL,
 	"proposals" jsonb,
-	"cost_usd" numeric(12, 6),
+	"cost_usd" numeric(16, 10),
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"deleted_at" timestamp with time zone,
 	CONSTRAINT "snaps_location_check" CHECK ("snaps"."location" in ('fridge', 'freezer', 'pantry', 'counter')),

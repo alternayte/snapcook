@@ -1,6 +1,6 @@
 {
-  "id": "ef3f8066-a845-4572-915d-6d82d00837c7",
-  "prevId": "a37d5238-0550-4058-8cee-c48bd36a6e38",
+  "id": "721d0eaa-d23e-4eb2-8880-bc80b48a3f72",
+  "prevId": "1f281021-2fcd-4932-addc-0c7ec959b75f",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -769,7 +769,7 @@
         },
         "cost_usd": {
           "name": "cost_usd",
-          "type": "numeric(12, 6)",
+          "type": "numeric(16, 10)",
           "primaryKey": false,
           "notNull": true
         },
@@ -1636,7 +1636,7 @@
         },
         "cost_usd": {
           "name": "cost_usd",
-          "type": "numeric(12, 6)",
+          "type": "numeric(16, 10)",
           "primaryKey": false,
           "notNull": false
         },
