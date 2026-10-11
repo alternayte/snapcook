@@ -1,14 +1,2 @@
 #!/bin/sh
-# Leak guard: block private files from the public repo.
-pattern='^\.internal|PROGRESS\.md|PRD\.md|SDD\.md|DECISIONS\.md|golden/|refs/|\.env$|settings\.local\.json'
-
-blocked=$(git diff --cached --name-only --diff-filter=ACMR | grep -E "$pattern")
-if [ -n "$blocked" ]; then
-  echo "pre-commit: blocked, private path staged:" >&2
-  echo "$blocked" | sed 's/^/  /' >&2
-  exit 1
-fi
-
-if command -v gitleaks >/dev/null 2>&1; then
-  gitleaks protect --staged --redact --no-banner || exit 1
-fi
+exec "$(git rev-parse --show-toplevel)/checks/leak-guard.sh" --staged

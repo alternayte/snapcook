@@ -1,0 +1,17 @@
+{
+  "name": "@snapcook/corpus",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "corpus": "./src/cli.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -b"
+  },
+  "dependencies": {
+    "@snapcook/db": "workspace:*",
+    "@snapcook/llm": "workspace:*",
+    "@snapcook/schema": "workspace:*"
+  }
+}
