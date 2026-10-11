@@ -17,11 +17,11 @@ e2e *args:
 eval *args:
     bun apps/corpus/src/cli.ts eval {{args}}
 
-# Run the API and the browser preview of the app together.
-dev:
+# Run the API and the browser preview of the app together, on the in-memory test database.
+dev: test-db
     #!/usr/bin/env bash
     trap 'kill 0' EXIT
-    CORS_ORIGINS=http://localhost:8081 bun --watch apps/api/src/index.ts &
+    DATABASE_URL=postgres://postgres:test@127.0.0.1:54330/postgres CORS_ORIGINS=http://localhost:8081 bun --watch apps/api/src/index.ts &
     cd apps/mobile && bunx expo start --web --port 8081
 
 # Start the throwaway Postgres that the tests use. Its data lives in memory.
@@ -35,3 +35,7 @@ test-db:
     until docker exec snapcook-test-db psql -U postgres -h 127.0.0.1 -c 'select 1' >/dev/null 2>&1; do
       sleep 0.5
     done
+
+# Load the canonical ingredients and device profiles from a directory into DATABASE_URL.
+seed dir=".internal/corpus":
+    bun packages/db/src/seed/cli.ts {{dir}}
