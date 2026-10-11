@@ -23,6 +23,12 @@ export type StructuredBackend = {
   generate(input: StructuredInput, schema: z.ZodType): Promise<StructuredResult>;
 };
 
+// A request that has not answered by now is dead: the connection dropped or the machine slept.
+const REQUEST_TIMEOUT_MS = 5 * 60 * 1000;
+
+// OpenRouter reserves credit for the whole output limit. The largest answer here is a recipe.
+const MAX_OUTPUT_TOKENS = 16_000;
+
 /** A model reached through the AI SDK. Cost comes from OpenRouter's usage accounting. */
 export function aiSdkBackend(model: Exclude<LanguageModel, string>): StructuredBackend {
   return {
@@ -32,6 +38,8 @@ export function aiSdkBackend(model: Exclude<LanguageModel, string>): StructuredB
       const result = await generateText({
         model,
         output: Output.object({ schema }),
+        timeout: REQUEST_TIMEOUT_MS,
+        maxOutputTokens: MAX_OUTPUT_TOKENS,
         ...input,
       } as Parameters<typeof generateText>[0]);
       const metadata = result.providerMetadata as
