@@ -19,6 +19,7 @@
     "@snapcook/db": "workspace:*",
     "@snapcook/llm": "workspace:*",
     "@snapcook/schema": "workspace:*",
+    "drizzle-orm": "0.45.4",
     "hono": "4.13.13"
   }
 }

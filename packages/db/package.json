@@ -7,12 +7,24 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./src/index.ts"
+    },
+    "./testing": {
+      "types": "./dist/testing.d.ts",
+      "default": "./src/testing.ts"
     }
   },
   "scripts": {
-    "typecheck": "tsc -b"
+    "typecheck": "tsc -b",
+    "generate": "drizzle-kit generate",
+    "test": "bun test"
   },
   "dependencies": {
-    "@snapcook/schema": "workspace:*"
+    "@snapcook/schema": "workspace:*",
+    "drizzle-orm": "0.45.4",
+    "pg": "^8"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.23.1",
+    "drizzle-kit": "0.31.11"
   }
 }
