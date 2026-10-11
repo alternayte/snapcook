@@ -179,6 +179,8 @@ export const DishCandidate = z.object({
   technique: z.string().min(1),
   time_band: z.string().min(1),
   status: CandidateStatus,
+  /** The writing batch this dish is assigned to. Null until it is selected. */
+  batch: z.number().int().positive().nullable(),
   /** An earlier candidate this one closely resembles, for the person pruning to judge. */
   similar_to: Id.nullable(),
   embedding: Embedding.nullable(),

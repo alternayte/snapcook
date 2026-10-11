@@ -200,6 +200,7 @@ export const dishCandidates = pgTable(
     technique: text().notNull(),
     time_band: text().notNull(),
     status: enumText(CandidateStatus).notNull().default("proposed"),
+    batch: integer(),
     similar_to: uuid().references((): AnyPgColumn => dishCandidates.id, { onDelete: "set null" }),
     embedding: embedding(),
     created_at: createdAt(),

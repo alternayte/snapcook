@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import { similarEarlier, withoutKnownNames } from "./dedupe";
 import { GridFileError, parseGrid, renderGrid } from "./markdown";
+import { selectBatch } from "./select";
 
 const dish = (id: string, name: string, over: object = {}) => ({
   id,
@@ -12,6 +13,7 @@ const dish = (id: string, name: string, over: object = {}) => ({
   technique: "soup",
   time_band: "under_30",
   status: "proposed" as const,
+  batch: null as number | null,
   similar_to: null as string | null,
   ...over,
 });
@@ -69,4 +71,34 @@ test("a renamed dish in the file is an error, not a silent drop", () => {
   const rows = [dish("1", "Dal Tadka")];
   const edited = renderGrid(rows).replace("**Dal Tadka**", "**Dal Tarka**");
   expect(() => parseGrid(edited, ["Dal Tadka"])).toThrow(GridFileError);
+});
+
+test("a batch takes cuisines in turn, prefers weighted dishes, and avoids repeats", () => {
+  const rules = {
+    protein_weights: { pulse: 2 },
+    preferred_techniques: ["braise"],
+    preferred_technique_weight: 1,
+    min_preferred_share: 0,
+    repeat_penalty: 5,
+  };
+  const d = (name: string, cuisine: string, primary_protein: string, technique: string) => ({
+    id: name,
+    name,
+    cuisine,
+    primary_protein,
+    technique,
+  });
+  const picked = selectBatch(
+    [
+      d("A1", "a", "pulse", "braise"),
+      d("A2", "a", "pulse", "braise"),
+      d("A3", "a", "beef", "roast"),
+      d("B1", "b", "beef", "roast"),
+      d("B2", "b", "pulse", "soup"),
+    ],
+    4,
+    rules,
+  );
+  // Round one: the best of each cuisine. Round two: A3 beats A2, which repeats pulse/braise.
+  expect(picked.map((p) => p.name)).toEqual(["A1", "B2", "A3", "B1"]);
 });

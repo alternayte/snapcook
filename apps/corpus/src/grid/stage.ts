@@ -1,10 +1,11 @@
 import { join } from "node:path";
 import { createDb, migrate, recordLlmCall, schema } from "@snapcook/db";
 import { createOpenRouterLlm } from "@snapcook/llm";
-import { asc, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import { loadGridConfig, proposalPrompt, proposalSchema } from "./config";
 import { similarEarlier, withoutKnownNames } from "./dedupe";
 import { parseGrid, renderGrid } from "./markdown";
+import { preferredShare, selectBatch } from "./select";
 
 const { dishCandidates } = schema;
 
@@ -113,18 +114,63 @@ async function importGrid(dir: string) {
   await pool.end();
 }
 
-const actions: Record<string, (dir: string) => Promise<void>> = {
+/** Assigns the next writing batch from kept dishes that have none, and writes the list to a file. */
+async function select(dir: string, [sizeArg]: string[]) {
+  const size = Number(sizeArg);
+  if (!Number.isInteger(size) || size <= 0) throw new Error("usage: corpus grid select <size>");
+  const config = await loadGridConfig(join(dir, "grid.json"));
+  const { db, pool } = await open();
+  const all = await db.select().from(dishCandidates);
+  const batch = Math.max(0, ...all.map((row) => row.batch ?? 0)) + 1;
+  const free = all.filter((row) => row.status === "kept" && row.batch === null);
+  const picked = selectBatch(free, size, config.selection);
+  const share = preferredShare(picked, config.selection);
+  if (share < config.selection.min_preferred_share) {
+    throw new Error(
+      `only ${Math.round(share * 100)}% of the batch uses a preferred technique; raise preferred_technique_weight`,
+    );
+  }
+  await db
+    .update(dishCandidates)
+    .set({ batch })
+    .where(
+      and(
+        inArray(
+          dishCandidates.id,
+          picked.map((d) => d.id),
+        ),
+        isNull(dishCandidates.batch),
+      ),
+    );
+  const lines = picked
+    .sort((a, b) => a.cuisine.localeCompare(b.cuisine) || a.name.localeCompare(b.name))
+    .map(
+      (d) =>
+        `- ${d.cuisine} — **${d.name}** — ${d.primary_protein} · ${d.technique} · ${d.time_band}`,
+    );
+  await Bun.write(
+    join(dir, `batch-${batch}.md`),
+    [`# Batch ${batch} (${picked.length} dishes)`, "", ...lines, ""].join("\n"),
+  );
+  console.log(
+    `batch ${batch}: ${picked.length} dishes, ${Math.round(share * 100)}% with a preferred technique`,
+  );
+  await pool.end();
+}
+
+const actions: Record<string, (dir: string, args: string[]) => Promise<void>> = {
   propose,
   export: exportGrid,
   import: importGrid,
+  select,
 };
 
-/** `corpus grid <propose|export|import> [directory]` */
-export async function grid([action, dir = ".internal/corpus"]: string[]) {
+/** `corpus grid <propose|export|import|select> [args]`. The data directory is CORPUS_DIR. */
+export async function grid([action, ...args]: string[]) {
   const run = action ? actions[action] : undefined;
   if (!run) {
-    console.error(`usage: corpus grid <${Object.keys(actions).join("|")}> [directory]`);
+    console.error(`usage: corpus grid <${Object.keys(actions).join("|")}> [args]`);
     process.exit(2);
   }
-  await run(dir);
+  await run(process.env.CORPUS_DIR ?? ".internal/corpus", args);
 }

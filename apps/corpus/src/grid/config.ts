@@ -10,6 +10,17 @@ export const GridConfig = z.object({
   proteins: z.array(z.string().min(1)).min(1),
   techniques: z.array(z.string().min(1)).min(1),
   time_bands: z.array(z.string().min(1)).min(1),
+  /** How a writing batch is picked from the kept dishes. */
+  selection: z.object({
+    /** Extra score for a dish with this primary protein. Unlisted proteins score 0. */
+    protein_weights: z.record(z.string(), z.number()),
+    /** Techniques that count toward `min_preferred_share`, and their extra score. */
+    preferred_techniques: z.array(z.string().min(1)),
+    preferred_technique_weight: z.number(),
+    min_preferred_share: z.number().min(0).max(1),
+    /** Score removed for each already-picked dish with the same protein and technique. */
+    repeat_penalty: z.number(),
+  }),
 });
 export type GridConfig = z.infer<typeof GridConfig>;
 

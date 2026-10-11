@@ -29,6 +29,13 @@
       "when": 1791756088247,
       "tag": "0003_dish_candidates",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791757992080,
+      "tag": "0004_candidate_batch",
+      "breakpoints": true
     }
   ]
 }

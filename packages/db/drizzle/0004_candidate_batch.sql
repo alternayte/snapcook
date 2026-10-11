@@ -1,0 +1,1 @@
+ALTER TABLE "dish_candidates" ADD COLUMN "batch" integer;
