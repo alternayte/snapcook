@@ -1,5 +1,6 @@
 import {
   type Allergen,
+  CandidateStatus,
   type DeviceCapabilities,
   DeviceProfileId,
   type DeviceStep,
@@ -184,5 +185,27 @@ export const recipeReports = pgTable(
   (t) => [
     index("recipe_reports_version_resolved_idx").on(t.recipe_version_id, t.resolved),
     enumCheck("recipe_reports_kind_check", t.kind, ReportKind.options),
+  ],
+);
+
+export const dishCandidates = pgTable(
+  "dish_candidates",
+  {
+    id: id(),
+    name: text().notNull().unique(),
+    aliases: text().array().notNull().default([]),
+    cuisine: text().notNull(),
+    dish_type: text().notNull(),
+    primary_protein: text().notNull(),
+    technique: text().notNull(),
+    time_band: text().notNull(),
+    status: enumText(CandidateStatus).notNull().default("proposed"),
+    similar_to: uuid().references((): AnyPgColumn => dishCandidates.id, { onDelete: "set null" }),
+    embedding: embedding(),
+    created_at: createdAt(),
+  },
+  (t) => [
+    index("dish_candidates_cuisine_idx").on(t.cuisine),
+    enumCheck("dish_candidates_status_check", t.status, CandidateStatus.options),
   ],
 );

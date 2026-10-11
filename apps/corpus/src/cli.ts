@@ -1,9 +1,10 @@
 #!/usr/bin/env bun
+import { grid } from "./grid/stage";
 import { smoke } from "./smoke";
 
 type Stage = (args: string[]) => Promise<void>;
 
-const stages: Record<string, Stage> = { smoke };
+const stages: Record<string, Stage> = { grid, smoke };
 
 const [name, ...args] = process.argv.slice(2);
 const stage = name ? stages[name] : undefined;

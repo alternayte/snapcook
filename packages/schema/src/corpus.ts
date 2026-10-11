@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   Allergen,
+  CandidateStatus,
   DeviceProfileId,
   Embedding,
   Id,
@@ -166,3 +167,21 @@ export const RecipeReport = z.object({
   created_at: z.date(),
 });
 export type RecipeReport = z.infer<typeof RecipeReport>;
+
+/** A dish proposed for the catalogue, before a person has pruned the list. */
+export const DishCandidate = z.object({
+  id: Id,
+  name: z.string().min(1),
+  aliases: z.array(z.string().min(1)),
+  cuisine: z.string().min(1),
+  dish_type: z.string().min(1),
+  primary_protein: z.string().min(1),
+  technique: z.string().min(1),
+  time_band: z.string().min(1),
+  status: CandidateStatus,
+  /** An earlier candidate this one closely resembles, for the person pruning to judge. */
+  similar_to: Id.nullable(),
+  embedding: Embedding.nullable(),
+  created_at: z.date(),
+});
+export type DishCandidate = z.infer<typeof DishCandidate>;

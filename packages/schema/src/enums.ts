@@ -106,6 +106,9 @@ export const SubscriptionStatus = z.enum([
 ]);
 export type SubscriptionStatus = z.infer<typeof SubscriptionStatus>;
 
+export const CandidateStatus = z.enum(["proposed", "kept", "dropped"]);
+export type CandidateStatus = z.infer<typeof CandidateStatus>;
+
 export const DeviceProfileId = z.enum(["mc_smart"]);
 export type DeviceProfileId = z.infer<typeof DeviceProfileId>;
 
