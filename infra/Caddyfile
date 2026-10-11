@@ -1,8 +1,0 @@
-{$SITE_ADDRESS} {
-	@snaps path /api/v1/snaps
-	request_body @snaps {
-		max_size 20MB
-	}
-
-	reverse_proxy api:3000
-}
