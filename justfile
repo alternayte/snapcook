@@ -7,7 +7,7 @@ check:
 
 # Bring up the whole stack with Docker Compose.
 up *args:
-    docker compose -f infra/docker-compose.yml up --build {{args}}
+    docker compose --env-file .env -f infra/docker-compose.yml up --build {{args}}
 
 # Run the end-to-end UI flows.
 e2e *args:

@@ -1,0 +1,38 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.3
+      - uses: extractions/setup-just@v4
+      - run: bun install --frozen-lockfile
+      - run: just check
+
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: docker build -f apps/api/Dockerfile -t snapcook-api .
+      - name: Serve healthz from the image
+        run: |
+          docker run -d --name api -p 3000:3000 snapcook-api
+          for i in $(seq 1 20); do
+            curl -fsS http://localhost:3000/api/v1/healthz && exit 0
+            sleep 1
+          done
+          docker logs api
+          exit 1

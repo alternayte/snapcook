@@ -1,0 +1,10 @@
+**/node_modules
+**/dist
+**/.turbo
+**/.expo
+.git
+.internal
+artifacts
+data
+.env
+.env.*
