@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 import type { LlmCallRecord } from "@snapcook/schema";
 import { MockEmbeddingModelV4, MockLanguageModelV4 } from "ai/test";
 import { z } from "zod";
+import { aiSdkBackend, ClaudeCodeError, parseClaudeCodeResult } from "./backends";
 import { createLlm, LlmCostMissingError } from "./llm";
 
 const usage = {
@@ -32,10 +33,11 @@ const embedding = (dimensions: number) =>
     }),
   });
 
-function setup(chat: MockLanguageModelV4, embed = embedding(1024)) {
+function setup(model: MockLanguageModelV4, embed = embedding(1024)) {
+  const chat = aiSdkBackend(model);
   const calls: LlmCallRecord[] = [];
   const llm = createLlm({
-    models: { vision: chat, adapt: chat, review: chat, embed },
+    models: { vision: chat, adapt: chat, review: chat, write: chat, embed },
     record: async (call) => {
       calls.push(call);
     },
@@ -90,4 +92,39 @@ test("each embedding request is logged with its own tokens and cost", async () =
     { model: "test/embed", prompt_tokens: 9, cost_usd: 0.000001, ok: true },
     { model: "test/embed", prompt_tokens: 9, cost_usd: 0.000001, ok: true },
   ]);
+});
+
+const cliResult = (over: object) =>
+  JSON.stringify({
+    is_error: false,
+    subtype: "success",
+    result: '{"answer":5}',
+    structured_output: { answer: 5 },
+    total_cost_usd: 0.00972,
+    usage: {
+      input_tokens: 2,
+      cache_creation_input_tokens: 1084,
+      cache_read_input_tokens: 10,
+      output_tokens: 52,
+    },
+    ...over,
+  });
+
+test("a Claude Code result counts cached input as prompt tokens and keeps the reported cost", () => {
+  expect(parseClaudeCodeResult(cliResult({}))).toEqual({
+    object: { answer: 5 },
+    prompt_tokens: 1096,
+    completion_tokens: 52,
+    cost: 0.00972,
+  });
+});
+
+test("a Claude Code error result throws with the CLI's message", () => {
+  const failed = cliResult({
+    is_error: true,
+    subtype: "error_during_execution",
+    result: "usage limit reached",
+  });
+  expect(() => parseClaudeCodeResult(failed)).toThrow(ClaudeCodeError);
+  expect(() => parseClaudeCodeResult(failed)).toThrow(/usage limit reached/);
 });

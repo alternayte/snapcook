@@ -26,6 +26,9 @@ services:
   postgres:
     image: pgvector/pgvector:pg17
     restart: always
+    # Loopback only by default, for the command-line tools on the host.
+    ports:
+      - "${PG_BIND:-127.0.0.1:54329}:5432"
     command: ["postgres", "-c", "shared_buffers=${PG_SHARED_BUFFERS:-256MB}"]
     environment:
       POSTGRES_USER: snapcook

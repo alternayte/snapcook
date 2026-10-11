@@ -39,3 +39,7 @@ test-db:
 # Load the canonical ingredients and device profiles from a directory into DATABASE_URL.
 seed dir=".internal/corpus":
     bun packages/db/src/seed/cli.ts {{dir}}
+
+# Start only the persistent Postgres from the Compose stack, for the command-line tools.
+db:
+    docker compose --env-file .env -f infra/docker-compose.yml up -d --wait postgres

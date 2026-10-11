@@ -1,6 +1,7 @@
 import { EMBEDDING_DIMENSIONS, type LlmCallRecord } from "@snapcook/schema";
-import { type EmbeddingModel, embedMany, generateText, type LanguageModel, Output } from "ai";
+import { type EmbeddingModel, embedMany } from "ai";
 import type { z } from "zod";
+import type { StructuredBackend, StructuredInput } from "./backends";
 
 export type CallContext = {
   /** The API route or CLI stage that made the call. */
@@ -9,9 +10,11 @@ export type CallContext = {
 };
 
 export type LlmModels = {
-  vision: LanguageModel;
-  adapt: LanguageModel;
-  review: LanguageModel;
+  vision: StructuredBackend;
+  adapt: StructuredBackend;
+  review: StructuredBackend;
+  /** Writes corpus content offline. */
+  write: StructuredBackend;
   embed: Exclude<EmbeddingModel, string>;
 };
 
@@ -29,21 +32,18 @@ export class LlmCostMissingError extends Error {
 
 type Measured<T> = { value: T; prompt_tokens: number; completion_tokens: number; cost: unknown };
 
-const modelId = (model: LanguageModel | EmbeddingModel) =>
-  typeof model === "string" ? model : model.modelId;
-
 const openRouterCost = (metadata: unknown) =>
   (metadata as { openrouter?: { usage?: { cost?: unknown } } } | undefined)?.openrouter?.usage
     ?.cost;
 
 export function createLlm({ models, record }: LlmDeps) {
   async function logged<T>(
-    model: LanguageModel | EmbeddingModel,
+    model: string,
     ctx: CallContext,
     call: () => Promise<Measured<T>>,
   ): Promise<T> {
     const started = Date.now();
-    const base = { ...ctx, model: modelId(model) };
+    const base = { ...ctx, model };
     const latency = () => Math.round(Date.now() - started);
     let result: Measured<T>;
     try {
@@ -71,25 +71,16 @@ export function createLlm({ models, record }: LlmDeps) {
     return result.value;
   }
 
-  async function generate<S extends z.ZodType>(
-    model: LanguageModel,
+  function generate<S extends z.ZodType>(
+    backend: StructuredBackend,
     schema: S,
     ctx: CallContext,
-    input: Pick<Parameters<typeof generateText>[0], "prompt" | "messages" | "system">,
+    input: StructuredInput,
   ): Promise<z.infer<S>> {
-    return logged(model, ctx, async () => {
-      const result = await generateText({
-        model,
-        output: Output.object({ schema }),
-        ...input,
-      } as Parameters<typeof generateText>[0]);
-      return {
-        // The SDK has already validated the output against the schema.
-        value: result.output as z.infer<S>,
-        prompt_tokens: result.usage.inputTokens ?? 0,
-        completion_tokens: result.usage.outputTokens ?? 0,
-        cost: openRouterCost(result.providerMetadata),
-      };
+    return logged(backend.model, ctx, async () => {
+      const result = await backend.generate(input, schema);
+      // Every backend's output is checked here, whatever the backend itself validates.
+      return { ...result, value: schema.parse(result.object) };
     });
   }
 
@@ -119,7 +110,7 @@ export function createLlm({ models, record }: LlmDeps) {
     structured<S extends z.ZodType>(
       prompt: { system?: string; prompt: string },
       schema: S,
-      ctx: CallContext & { role?: "adapt" | "review" },
+      ctx: CallContext & { role?: "adapt" | "review" | "write" },
     ) {
       const { role = "adapt", ...context } = ctx;
       return generate(models[role], schema, context, prompt);
@@ -132,7 +123,7 @@ export function createLlm({ models, record }: LlmDeps) {
       const batchSize = Math.min((await models.embed.maxEmbeddingsPerCall) ?? 64, 64);
       const vectors: number[][] = [];
       for (let i = 0; i < texts.length; i += batchSize) {
-        const batch = await logged(models.embed, ctx, async () => {
+        const batch = await logged(models.embed.modelId, ctx, async () => {
           const result = await embedMany({
             model: models.embed,
             values: texts.slice(i, i + batchSize),

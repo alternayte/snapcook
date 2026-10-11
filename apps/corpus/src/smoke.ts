@@ -31,15 +31,16 @@ export async function smoke() {
     ...ctx,
     role: "review",
   });
+  const write = await llm.structured({ prompt: "What is 2 + 3?" }, sum, { ...ctx, role: "write" });
   const [vector] = await llm.embed(["chicken thigh, bell pepper, onion"], ctx);
 
-  console.log({ seen, adapt, review, dimensions: vector?.length });
+  console.log({ seen, adapt, review, write, dimensions: vector?.length });
   const rows = await db
     .select()
     .from(schema.llmCalls)
     .where(eq(schema.llmCalls.endpoint, "smoke"))
     .orderBy(desc(schema.llmCalls.created_at))
-    .limit(4);
+    .limit(5);
   console.table(
     rows.map(({ model, prompt_tokens, completion_tokens, cost_usd, latency_ms, ok }) => ({
       model,
