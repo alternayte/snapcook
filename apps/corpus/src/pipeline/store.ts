@@ -57,7 +57,7 @@ export async function save(
     });
 }
 
-export type Selection = { batch?: number; dish?: string; limit?: number };
+export type Selection = { batch?: number; dish?: string; limit?: number; concurrency?: number };
 
 /** The dishes a stage run covers: those in a writing batch, narrowed by the selection. */
 export async function selectedDishes(db: Db, selection: Selection): Promise<DishCandidate[]> {

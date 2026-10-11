@@ -25,6 +25,7 @@ function parseSelection(args: string[]): Selection {
     if (flag === "--batch") selection.batch = Number(value);
     else if (flag === "--limit") selection.limit = Number(value);
     else if (flag === "--dish") selection.dish = value;
+    else if (flag === "--concurrency") selection.concurrency = Number(value);
     else throw new Error(`unknown option ${flag}`);
   }
   return selection;
@@ -44,6 +45,8 @@ const FULL_RUN = [
   "publish",
 ] as const;
 type StageName = (typeof FULL_RUN)[number];
+
+const STOP_AFTER_FAILURES = 5;
 const STAGE_NAMES = [...new Set<string>(FULL_RUN)];
 
 async function context(db: Db) {
@@ -102,7 +105,7 @@ function runner(db: Db, ctx: Context, name: StageName) {
 }
 
 /**
- * `corpus stage <name|all> [--batch n] [--dish name] [--limit n]`.
+ * `corpus stage <name|all> [--batch n] [--dish name] [--limit n] [--concurrency n]`.
  * `all` takes each dish through every stage before the next dish. `--limit` counts dishes.
  */
 export async function stage([name, ...args]: string[]) {
@@ -122,28 +125,45 @@ export async function stage([name, ...args]: string[]) {
 
   let worked = 0;
   let failed = 0;
-  for (const dish of await selectedDishes(db, selection)) {
-    if (selection.limit !== undefined && worked >= selection.limit) break;
-    const outcomes: string[] = [];
-    try {
-      for (const stageName of names) {
-        // Read the dish again: publish sets recipe_id, and a later stage must see it.
-        const [fresh] = await db
-          .select()
-          .from(schema.dishCandidates)
-          .where(eq(schema.dishCandidates.id, dish.id));
-        const outcome = await runner(db, ctx, stageName)(fresh ?? dish);
-        if (outcome !== "skipped") outcomes.push(`${stageName}=${outcome}`);
+  let failuresInARow = 0;
+  const queue = await selectedDishes(db, selection);
+
+  async function worker() {
+    for (;;) {
+      // A run of failures means the cause is shared (a usage limit, no credit, no network).
+      if (failuresInARow >= STOP_AFTER_FAILURES) return;
+      if (selection.limit !== undefined && worked >= selection.limit) return;
+      const dish = queue.shift();
+      if (!dish) return;
+      const outcomes: string[] = [];
+      try {
+        for (const stageName of names) {
+          // Read the dish again: publish sets recipe_id, and a later stage must see it.
+          const [fresh] = await db
+            .select()
+            .from(schema.dishCandidates)
+            .where(eq(schema.dishCandidates.id, dish.id));
+          const outcome = await runner(db, ctx, stageName)(fresh ?? dish);
+          if (outcome !== "skipped") outcomes.push(`${stageName}=${outcome}`);
+        }
+        if (outcomes.length > 0) failuresInARow = 0;
+      } catch (error) {
+        // One dish failing must not stop the batch; every finished stage is already stored.
+        failed += 1;
+        failuresInARow += 1;
+        outcomes.push(`FAILED ${error instanceof Error ? error.message : error}`);
       }
-    } catch (error) {
-      // One dish failing must not stop the batch; the run is resumable.
-      failed += 1;
-      outcomes.push(`FAILED ${error instanceof Error ? error.message : error}`);
+      if (outcomes.length > 0) {
+        worked += 1;
+        console.log(`${dish.name}: ${outcomes.join(" · ")}`);
+      }
     }
-    if (outcomes.length > 0) {
-      worked += 1;
-      console.log(`${dish.name}: ${outcomes.join(" · ")}`);
-    }
+  }
+  await Promise.all(Array.from({ length: selection.concurrency ?? 1 }, worker));
+  if (failuresInARow >= STOP_AFTER_FAILURES) {
+    console.error(
+      `stopped: ${failuresInARow} dishes failed in a row. Run the same command again to resume.`,
+    );
   }
   console.log(`${name}: ${worked} dish(es) processed, ${failed} failed`);
   await pool.end();
