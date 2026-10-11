@@ -1,5 +1,5 @@
 import { createDb, migrate } from "@snapcook/db";
-import { createApp } from "./app";
+import { createServer } from "./server";
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) throw new Error("DATABASE_URL is not set");
@@ -7,8 +7,9 @@ if (!databaseUrl) throw new Error("DATABASE_URL is not set");
 const { db, pool } = createDb(databaseUrl);
 await migrate(pool);
 
-const app = createApp({
+const app = createServer({
   db,
+  adminPassword: process.env.ADMIN_PASSWORD || undefined,
   corsOrigins: (process.env.CORS_ORIGINS ?? "").split(",").filter(Boolean),
 });
 

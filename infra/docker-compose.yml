@@ -12,6 +12,7 @@ services:
     environment:
       DATABASE_URL: postgres://snapcook:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/snapcook
       CORS_ORIGINS: ${CORS_ORIGINS:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
     volumes:
       - ${DATA_DIR:-../data}/snaps:/data/snaps
     depends_on:
