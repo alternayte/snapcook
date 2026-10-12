@@ -1,7 +1,8 @@
 import { zValidator } from "@hono/zod-validator";
-import type { Db } from "@snapcook/db";
+import { type Db, schema } from "@snapcook/db";
 import type { Llm } from "@snapcook/llm";
 import { CreateHouseholdInput, MatchTextInput, type Me, ProfileInput } from "@snapcook/schema";
+import { eq, inArray, or } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
 import { fail, type HouseholdEnv, type SessionEnv } from "../../http";
@@ -57,7 +58,29 @@ const MATCH_SYSTEM = [
 const Matched = z.object({ names: z.array(z.string()) });
 
 export function householdRoutes(db: Db, llm: Llm, matcher: IngredientMatcher) {
+  const { ingredients } = schema;
   return new Hono<HouseholdEnv>()
+    .get("/household/profile", async (c) => {
+      const profile = await profileOf(db, c.var.household.id);
+      if (!profile) return fail(c, 404, "not_found", "This household has no profile.");
+      // The profile holds ingredient ids. The client also needs their names, and the staples
+      // a household may tick.
+      const used = [...profile.cannot_eat, ...profile.dislikes, ...profile.staples];
+      const rows = await db
+        .select({
+          id: ingredients.id,
+          name: ingredients.name,
+          staple: ingredients.is_staple_default,
+        })
+        .from(ingredients)
+        .where(or(eq(ingredients.is_staple_default, true), inArray(ingredients.id, used)))
+        .orderBy(ingredients.name);
+      return c.json({
+        profile,
+        names: Object.fromEntries(rows.map((r) => [r.id, r.name])),
+        staple_options: rows.filter((r) => r.staple).map(({ id, name }) => ({ id, name })),
+      });
+    })
     .put(
       "/household/profile",
       zValidator("json", ProfileInput, (result, c) =>

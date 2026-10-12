@@ -135,6 +135,13 @@ test("the profile is replaced as a whole, keeps who added an allergen, and refus
   expect(me.profile).toMatchObject({ toddler: true, cannot_eat: [milk.id] });
   expect(me.profile?.allergens).toEqual([{ value: "milk", added_by: me.user.id }]);
 
+  const read = (await (await call(user, "GET", "/household/profile")).json()) as {
+    names: Record<string, string>;
+    staple_options: { name: string }[];
+  };
+  expect(read.names[milk.id]).toBe("milk");
+  expect(read.staple_options.map((s) => s.name)).toEqual(["salt"]);
+
   const bad = await call(user, "PUT", "/household/profile", {
     ...profile,
     dislikes: ["018f4b7a-0000-7000-8000-000000000000"],

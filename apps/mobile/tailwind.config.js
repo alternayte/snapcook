@@ -1,73 +1,47 @@
 const { hairlineWidth } = require("nativewind/theme");
 
+const hsl = (name) => `hsl(var(--${name}) / <alpha-value>)`;
+
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  // NativeWind sets the scheme by class on the web. The app has one light theme and no dark styles.
   darkMode: "class",
   content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}"],
   presets: [require("nativewind/preset")],
   theme: {
+    // The scrapbook has its own short lists. Nothing from the default palette or type scale is used.
+    colors: {
+      transparent: "transparent",
+      paper: { DEFAULT: hsl("paper"), deep: hsl("paper-deep") },
+      card: hsl("card"),
+      ink: { DEFAULT: hsl("ink"), soft: hsl("ink-soft") },
+      tomato: hsl("tomato"),
+      mustard: hsl("mustard"),
+      sage: hsl("sage"),
+      tape: hsl("tape"),
+    },
+    fontFamily: {
+      display: ["Fraunces_800ExtraBold"],
+      title: ["Fraunces_700Bold"],
+      body: ["DMSans_400Regular"],
+      medium: ["DMSans_500Medium"],
+      bold: ["DMSans_700Bold"],
+      hand: ["Caveat_700Bold"],
+    },
+    // A 1.25 scale from 16.
+    fontSize: {
+      xs: ["12px", "16px"],
+      sm: ["14px", "20px"],
+      base: ["16px", "24px"],
+      lg: ["20px", "26px"],
+      xl: ["25px", "28px"],
+      "2xl": ["31px", "34px"],
+      "3xl": ["39px", "40px"],
+    },
     extend: {
-      colors: {
-        border: "hsl(var(--border))",
-        input: "hsl(var(--input))",
-        ring: "hsl(var(--ring))",
-        background: "hsl(var(--background))",
-        foreground: "hsl(var(--foreground))",
-        primary: {
-          DEFAULT: "hsl(var(--primary))",
-          foreground: "hsl(var(--primary-foreground))",
-        },
-        secondary: {
-          DEFAULT: "hsl(var(--secondary))",
-          foreground: "hsl(var(--secondary-foreground))",
-        },
-        destructive: {
-          DEFAULT: "hsl(var(--destructive))",
-          foreground: "hsl(var(--destructive-foreground))",
-        },
-        muted: {
-          DEFAULT: "hsl(var(--muted))",
-          foreground: "hsl(var(--muted-foreground))",
-        },
-        accent: {
-          DEFAULT: "hsl(var(--accent))",
-          foreground: "hsl(var(--accent-foreground))",
-        },
-        popover: {
-          DEFAULT: "hsl(var(--popover))",
-          foreground: "hsl(var(--popover-foreground))",
-        },
-        card: {
-          DEFAULT: "hsl(var(--card))",
-          foreground: "hsl(var(--card-foreground))",
-        },
-      },
-      borderRadius: {
-        lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
-      },
-      borderWidth: {
-        hairline: hairlineWidth(),
-      },
-      keyframes: {
-        "accordion-down": {
-          from: { height: "0" },
-          to: { height: "var(--radix-accordion-content-height)" },
-        },
-        "accordion-up": {
-          from: { height: "var(--radix-accordion-content-height)" },
-          to: { height: "0" },
-        },
-      },
-      animation: {
-        "accordion-down": "accordion-down 0.2s ease-out",
-        "accordion-up": "accordion-up 0.2s ease-out",
-      },
+      borderRadius: { DEFAULT: "var(--radius)", paper: "3px" },
+      borderWidth: { hairline: hairlineWidth(), ink: "1.5px", bold: "2px" },
     },
   },
-  future: {
-    hoverOnlyWhenSupported: true,
-  },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [],
 };

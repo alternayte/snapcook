@@ -1,86 +1,38 @@
-import { Slot } from "@rn-primitives/slot";
 import { cva, type VariantProps } from "class-variance-authority";
 import * as React from "react";
-import { Platform, Text as RNText, type Role } from "react-native";
+import { Text as RNText } from "react-native";
 import { cn } from "@/lib/utils";
 
-const textVariants = cva(
-  cn(
-    "text-foreground text-base",
-    Platform.select({
-      web: "select-text",
-    }),
-  ),
-  {
-    variants: {
-      variant: {
-        default: "",
-        h1: cn(
-          "text-center text-4xl font-extrabold tracking-tight",
-          Platform.select({ web: "scroll-m-20 text-balance" }),
-        ),
-        h2: cn(
-          "border-border border-b pb-2 text-3xl font-semibold tracking-tight",
-          Platform.select({ web: "scroll-m-20 first:mt-0" }),
-        ),
-        h3: cn("text-2xl font-semibold tracking-tight", Platform.select({ web: "scroll-m-20" })),
-        h4: cn("text-xl font-semibold tracking-tight", Platform.select({ web: "scroll-m-20" })),
-        p: "mt-3 leading-7 sm:mt-6",
-        blockquote: "mt-4 border-l-2 pl-3 italic sm:mt-6 sm:pl-6",
-        code: cn(
-          "bg-muted relative rounded px-[0.3rem] py-[0.2rem] font-mono text-sm font-semibold",
-        ),
-        lead: "text-muted-foreground text-xl",
-        large: "text-lg font-semibold",
-        small: "text-sm font-medium leading-none",
-        muted: "text-muted-foreground text-sm",
-      },
-    },
-    defaultVariants: {
-      variant: "default",
+const textVariants = cva("text-ink", {
+  variants: {
+    variant: {
+      body: "font-body text-base",
+      strong: "font-bold text-base",
+      small: "font-body text-sm text-ink-soft",
+      label: "font-bold text-xs uppercase tracking-widest",
+      display: "font-display text-3xl tracking-tight",
+      title: "font-title text-xl",
+      heading: "font-title text-lg",
+      // Handwriting is for short notes only, never for anything a person must read to act.
+      hand: "font-hand text-xl text-ink-soft",
     },
   },
-);
+  defaultVariants: { variant: "body" },
+});
 
-type TextVariantProps = VariantProps<typeof textVariants>;
+const HEADINGS = new Set(["display", "title", "heading"]);
 
-type TextVariant = NonNullable<TextVariantProps["variant"]>;
-
-const ROLE: Partial<Record<TextVariant, Role>> = {
-  h1: "heading",
-  h2: "heading",
-  h3: "heading",
-  h4: "heading",
-  blockquote: Platform.select({ web: "blockquote" as Role }),
-  code: Platform.select({ web: "code" as Role }),
-};
-
-const ARIA_LEVEL: Partial<Record<TextVariant, string>> = {
-  h1: "1",
-  h2: "2",
-  h3: "3",
-  h4: "4",
-};
-
+/** Lets a container, such as a button, set the type of the text inside it. */
 const TextClassContext = React.createContext<string | undefined>(undefined);
 
-function Text({
-  className,
-  asChild = false,
-  variant = "default",
-  ...props
-}: React.ComponentProps<typeof RNText> &
-  React.RefAttributes<typeof RNText> &
-  TextVariantProps & {
-    asChild?: boolean;
-  }) {
-  const textClass = React.useContext(TextClassContext);
-  const Component = asChild ? Slot : RNText;
+type TextProps = React.ComponentProps<typeof RNText> & VariantProps<typeof textVariants>;
+
+function Text({ className, variant, ...props }: TextProps) {
+  const inherited = React.useContext(TextClassContext);
   return (
-    <Component
-      className={cn(textVariants({ variant }), textClass, className)}
-      role={variant ? ROLE[variant] : undefined}
-      aria-level={variant ? ARIA_LEVEL[variant] : undefined}
+    <RNText
+      className={cn(textVariants({ variant }), inherited, className)}
+      role={HEADINGS.has(variant ?? "") ? "heading" : undefined}
       {...props}
     />
   );
