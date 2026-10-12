@@ -52,6 +52,7 @@ const app = createServer({
   }),
   corsOrigins,
   imageDir: process.env.IMAGE_DIR || undefined,
+  adaptModel: required("MODEL_ADAPT"),
   ownerEmails: list("OWNER_EMAILS").map((email) => email.toLowerCase()),
 });
 

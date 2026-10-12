@@ -1,7 +1,6 @@
 import {
   type Allergen,
   type DietFlag,
-  type DietStyle,
   type HouseholdProfile,
   type IngredientRole,
   type PantrySnapshotLine,
@@ -10,6 +9,7 @@ import {
   toGrams,
   type Unit,
 } from "@snapcook/schema";
+import { createBanCheck } from "../household/diet";
 
 export type CorpusIngredient = {
   id: string;
@@ -69,15 +69,6 @@ const LAZY_MAX_DIFFICULTY = 1;
 // A dish that lacks at most this many core ingredients is a near miss.
 const NEAR_MAX_MISSING = 2;
 
-const FORBIDDEN: Record<DietStyle, DietFlag[]> = {
-  none: [],
-  pescatarian: ["meat", "pork"],
-  vegetarian: ["meat", "pork", "fish", "shellfish"],
-  vegan: ["meat", "pork", "fish", "shellfish", "dairy", "egg", "honey"],
-  halal: ["pork", "alcohol"],
-  kosher: ["pork", "shellfish"],
-};
-
 function cosine(a: number[], b: number[]) {
   let dot = 0;
   let na = 0;
@@ -104,21 +95,9 @@ export function rank(
   const { profile } = kitchen;
   const stocked = new Map(kitchen.pantry.map((line) => [line.ingredient_id, line]));
   const available = new Set([...stocked.keys(), ...profile.staples]);
-  const allergens = new Set(profile.allergens.map((a) => a.value));
-  const cannotEat = new Set(profile.cannot_eat);
   const dislikes = new Set(profile.dislikes);
-  const forbidden = new Set(FORBIDDEN[profile.diet_style]);
   const useUp = new Set(request.use_up);
-
-  const banned = (id: string) => {
-    const ingredient = corpus.ingredients.get(id);
-    return (
-      cannotEat.has(id) ||
-      ingredient === undefined ||
-      ingredient.allergens.some((a) => allergens.has(a)) ||
-      ingredient.contains.some((flag) => forbidden.has(flag))
-    );
-  };
+  const banned = createBanCheck(profile, corpus.ingredients);
   /** Something on hand that may be eaten and can stand in for the ingredient. */
   const standIn = (id: string) =>
     (corpus.substitutes.get(id) ?? []).find((s) => available.has(s) && !banned(s));

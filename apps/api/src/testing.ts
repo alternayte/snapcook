@@ -25,6 +25,7 @@ export function createTestServer(
     llm,
     corsOrigins: [],
     ownerEmails: over.ownerEmails ?? [],
+    adaptModel: "test-model",
     snaps: over.snaps ?? {
       snapDir: "/nonexistent",
       enqueueDetect: () => Promise.reject(new Error("no job runner in this test")),

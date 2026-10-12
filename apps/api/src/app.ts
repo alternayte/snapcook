@@ -11,6 +11,7 @@ import type { Auth } from "./modules/auth/auth";
 import { householdRoutes, sessionRoutes } from "./modules/household/routes";
 import { membership } from "./modules/household/service";
 import { pantryRoutes } from "./modules/pantry/routes";
+import { recipeRoutes } from "./modules/recipes/routes";
 import { type SnapDeps, snapRoutes } from "./modules/snaps/routes";
 import { suggestionRoutes } from "./modules/suggestions/routes";
 import { createCorpusReader } from "./modules/suggestions/service";
@@ -28,6 +29,8 @@ export type AppDeps = {
   /** A household created by one of these addresses gets the owner plan. Lower case. */
   ownerEmails: string[];
   snaps: Omit<SnapDeps, "db">;
+  /** The id of the model that adapts recipes, stored with each adaptation. */
+  adaptModel: string;
 };
 
 // A picture never changes once made: its name is the recipe version it belongs to.
@@ -64,6 +67,7 @@ export function createApp(deps: AppDeps) {
     .route("/", householdRoutes(db, llm, matcher))
     .route("/", pantryRoutes(db, matcher))
     .route("/", snapRoutes({ db, ...deps.snaps }))
+    .route("/", recipeRoutes({ db, llm, model: deps.adaptModel }))
     .route("/", suggestionRoutes({ db, llm, corpus: createCorpusReader(db) }));
 
   return new Hono()

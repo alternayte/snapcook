@@ -144,3 +144,47 @@ export const SuggestResponse = z.object({
   next_cursor: z.string().nullable(),
 });
 export type SuggestResponse = z.infer<typeof SuggestResponse>;
+
+/** A recipe as written, before it is adapted to a household. */
+export const RecipeView = z.object({
+  recipe_id: Id,
+  recipe_version_id: Id,
+  title: z.string(),
+  description: z.string(),
+  cuisine: z.string(),
+  time_total_min: z.number().int(),
+  time_active_min: z.number().int(),
+  difficulty: z.number().int(),
+  base_servings: z.number().int(),
+  image: z.string().nullable(),
+  /** True when the dish has steps for the device. */
+  has_device_variant: z.boolean(),
+  ingredients: z.array(
+    z.object({
+      ingredient_id: Id,
+      name: z.string(),
+      quantity: Quantity.nullable(),
+      unit: Unit.nullable(),
+      prep: z.string().nullable(),
+      role: z.enum(["core", "supporting", "staple", "optional"]),
+    }),
+  ),
+  steps: z.array(DeviceStep),
+});
+export type RecipeView = z.infer<typeof RecipeView>;
+
+export const AdaptRequest = z.object({
+  recipe_version_id: Id,
+  /** Any control left out takes the household's default. */
+  controls: AdaptationControls.partial(),
+});
+export type AdaptRequest = z.infer<typeof AdaptRequest>;
+
+export const AdaptResponse = z.object({
+  adaptation_id: Id,
+  controls: AdaptationControls,
+  recipe: AdaptedRecipe,
+  /** For each ingredient that is not on hand, the pantry items that could stand in for it. */
+  swap_options: z.record(Id, z.array(z.object({ pantry_item_id: Id, name: z.string() }))),
+});
+export type AdaptResponse = z.infer<typeof AdaptResponse>;

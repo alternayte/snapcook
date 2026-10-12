@@ -25,3 +25,39 @@ export function toGrams(quantity: number, unit: Unit, ingredient: Conversions): 
   const ml = toMillilitres(quantity, unit);
   return ml === null ? null : ml / (ingredient.ml_per_unit ?? 1);
 }
+
+/**
+ * A quantity expressed in another unit of the same ingredient, or null when the ingredient has
+ * no conversion between the two.
+ */
+export function convert(quantity: number, from: Unit, to: Unit, ingredient: Conversions) {
+  if (from === to) return quantity;
+  const grams = toGrams(quantity, from, ingredient);
+  if (grams === null) return null;
+  if (to === "g") return grams;
+  if (to === "piece") {
+    return ingredient.grams_per_unit === null ? null : grams / ingredient.grams_per_unit;
+  }
+  const ml = grams * (ingredient.ml_per_unit ?? 1);
+  return to === "ml" ? ml : ml / ML_PER_MEASURE[to];
+}
+
+// The step a quantity is rounded to, by size: [upper bound, step].
+const WEIGHT_STEPS: [number, number][] = [
+  [10, 1],
+  [50, 5],
+  [250, 10],
+  [1000, 25],
+  [Number.POSITIVE_INFINITY, 50],
+];
+
+/** Rounds a quantity to what a cook measures: 400 g, not 387 g; 1.5 tbsp, not 1.4. */
+export function roundKitchen(quantity: number, unit: Unit) {
+  const nearest = (step: number) => Math.max(step, Math.round(quantity / step) * step);
+  if (unit === "g" || unit === "ml") {
+    const [, step] = WEIGHT_STEPS.find(([limit]) => quantity < limit) ?? [0, 50];
+    return nearest(step);
+  }
+  if (unit === "piece") return nearest(0.5);
+  return Number(nearest(quantity < 1 ? 0.25 : 0.5).toFixed(2));
+}
