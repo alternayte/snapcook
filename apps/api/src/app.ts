@@ -96,6 +96,8 @@ export function createApp(deps: AppDeps) {
       await next();
       // The household is known only after the session is read, so it is taken from the context here.
       const household = (c.var as { household?: { id: string } }).household?.id ?? null;
+      // The health check runs every few seconds and would bury everything else.
+      if (c.req.path.endsWith("/healthz")) return;
       deps.log?.(
         JSON.stringify({
           time: new Date(started).toISOString(),

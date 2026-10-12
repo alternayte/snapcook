@@ -40,10 +40,12 @@ test("GET /api/v1/healthz answers 503 when the background jobs are down", async 
     log: (line) => lines.push(line),
   });
   expect((await app.request("/api/v1/healthz")).status).toBe(503);
-  // Each request leaves one line with its route, status and time.
+  // Each request leaves one line with its route, status and time. The health check leaves none.
+  expect(lines).toEqual([]);
+  await app.request("/api/v1/me");
   expect(JSON.parse(lines[0] ?? "{}")).toMatchObject({
     method: "GET",
-    route: "/api/v1/healthz",
-    status: 503,
+    route: "/api/v1/me",
+    status: 401,
   });
 });
