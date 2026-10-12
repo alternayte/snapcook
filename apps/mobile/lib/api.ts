@@ -17,6 +17,7 @@ export class ApiError extends Error {
     readonly status: number,
     readonly code: string,
     message: string,
+    readonly details?: Record<string, unknown>,
   ) {
     super(message);
   }
@@ -30,6 +31,14 @@ export async function unwrap<T>(
   if (res.status === 204) return undefined as T;
   const body = await res.json().catch(() => undefined);
   if (res.ok) return body as T;
-  const error = (body as { error?: { code?: string; message?: string } } | undefined)?.error;
-  throw new ApiError(res.status, error?.code ?? "unknown", error?.message ?? "");
+  const error = (
+    body as
+      | { error?: { code?: string; message?: string; details?: Record<string, unknown> } }
+      | undefined
+  )?.error;
+  throw new ApiError(res.status, error?.code ?? "unknown", error?.message ?? "", error?.details);
 }
+
+/** True when the server refused because the household's plan has no more of something. */
+export const isAllowanceError = (error: unknown) =>
+  error instanceof ApiError && error.code === "allowance_exceeded";

@@ -7,6 +7,7 @@ import { pictureUrl } from "@/components/cook/result-card";
 import { StepCard } from "@/components/recipe/step-card";
 import { AddToList } from "@/components/scrap/add-to-list";
 import { Card, Label, Page } from "@/components/scrap/paper";
+import { PlanLimit } from "@/components/scrap/plan-limit";
 import { Failed, Loading } from "@/components/scrap/status";
 import { Sticker } from "@/components/scrap/sticker";
 import { Button } from "@/components/ui/button";
@@ -123,7 +124,8 @@ function Recipe({
         </Card>
       ) : null}
 
-      {fitted ? (
+      {fitted?.controls_locked ? <PlanLimit body={t("plan.controls.locked")} /> : null}
+      {fitted && !fitted.controls_locked ? (
         <Card tilt={-0.5} className="gap-3">
           <View className="flex-row items-center justify-between">
             <Text variant="label">{t("recipe.servings")}</Text>

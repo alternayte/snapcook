@@ -10,12 +10,14 @@ import { Pressable, View } from "react-native";
 import { ResultCard } from "@/components/cook/result-card";
 import { AddToList } from "@/components/scrap/add-to-list";
 import { Card, Label, Page } from "@/components/scrap/paper";
+import { PlanLimit } from "@/components/scrap/plan-limit";
 import { Loading } from "@/components/scrap/status";
 import { Sticker } from "@/components/scrap/sticker";
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
 import { Field } from "@/components/ui/field";
 import { Text } from "@/components/ui/text";
+import { isAllowanceError } from "@/lib/api";
 import { useMe, usePantry, useSuggest } from "@/lib/queries";
 import { useT } from "@/lib/use-t";
 
@@ -199,7 +201,11 @@ function Cook({ householdId, profile }: { householdId: string; profile: Househol
         </Text>
       </Button>
       {suggest.isError ? (
-        <Text className="font-medium text-sm text-tomato">{t("common.error")}</Text>
+        isAllowanceError(suggest.error) ? (
+          <PlanLimit />
+        ) : (
+          <Text className="font-medium text-sm text-tomato">{t("common.error")}</Text>
+        )
       ) : null}
 
       {results.map((card, index) => (

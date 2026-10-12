@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "expo-router";
+import { Link, useRouter } from "expo-router";
 import { View } from "react-native";
 import { Members } from "@/components/profile/members";
 import { ProfileForm } from "@/components/profile/profile-form";
@@ -56,6 +56,18 @@ export default function HouseholdScreen() {
       <View className="gap-1">
         <Text variant="display">{household.name}</Text>
         <Text variant="small">{t("household.signedInAs", { email: me.data.user.email })}</Text>
+        <View className="flex-row items-center gap-3 pt-1">
+          <Label className="bg-sage">
+            <Text variant="label">{t(`plan.${household.plan}`)}</Text>
+          </Label>
+          {household.plan === "free" ? (
+            <Link href="/paywall" asChild>
+              <Button variant="quiet" size="sm" className="self-auto">
+                <Text>{t("plan.upgrade")}</Text>
+              </Button>
+            </Link>
+          ) : null}
+        </View>
       </View>
       <Members
         householdId={household.id}

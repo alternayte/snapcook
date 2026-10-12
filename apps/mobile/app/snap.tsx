@@ -1,9 +1,11 @@
 import { Location, type SnapProposal } from "@snapcook/schema";
+import { useQueryClient } from "@tanstack/react-query";
 import * as ImagePicker from "expo-image-picker";
 import { Link, useRouter } from "expo-router";
 import { useState } from "react";
 import { View } from "react-native";
 import { Card, Label, Page } from "@/components/scrap/paper";
+import { PlanLimit } from "@/components/scrap/plan-limit";
 import { Loading } from "@/components/scrap/status";
 import { Sticker } from "@/components/scrap/sticker";
 import { type Photo, PhotoTile } from "@/components/snap/photo-tile";
@@ -11,17 +13,20 @@ import { ProposalRow, type Row, SURE_ENOUGH } from "@/components/snap/proposal-r
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
 import { Text } from "@/components/ui/text";
+import { isAllowanceError } from "@/lib/api";
 import { useMe } from "@/lib/queries";
 import { MAX_PHOTOS, type SnapState, uploadPhoto, useCommitSnaps } from "@/lib/snaps";
 import { useT } from "@/lib/use-t";
 
-function Snap({ householdId }: { householdId: string }) {
+function Snap({ householdId, snapsLeft }: { householdId: string; snapsLeft: number | null }) {
   const t = useT();
   const router = useRouter();
   const commit = useCommitSnaps(householdId);
   const [location, setLocation] = useState<Location>("fridge");
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [rows, setRows] = useState<Row[]>([]);
+  const [atLimit, setAtLimit] = useState(false);
+  const client = useQueryClient();
   const room = MAX_PHOTOS - photos.length;
   const accepted = rows.filter((row) => row.accepted);
 
@@ -41,11 +46,16 @@ function Snap({ householdId }: { householdId: string }) {
       setPhotos((list) => [...list, { key, uri: asset.uri }]);
       const patch = await uploadPhoto(asset, location).then(
         (snapId) => ({ snapId }),
-        () => ({ failed: true }),
+        (error: unknown) => {
+          if (isAllowanceError(error)) setAtLimit(true);
+          return { failed: true };
+        },
       );
       setPhotos((list) =>
         list.map((photo) => (photo.key === key ? { ...photo, ...patch } : photo)),
       );
+      // Each photo uses one snap, so the count on screen is read again.
+      client.invalidateQueries({ queryKey: ["me"] });
     }
   }
 
@@ -127,7 +137,12 @@ function Snap({ householdId }: { householdId: string }) {
           <Text>{t("snap.gallery")}</Text>
         </Button>
         <Text variant="small">{t("snap.limit", { count: MAX_PHOTOS })}</Text>
+        {snapsLeft === null ? null : (
+          <Text variant="small">{t("plan.snaps.left", { left: snapsLeft })}</Text>
+        )}
       </Card>
+
+      {atLimit || snapsLeft === 0 ? <PlanLimit /> : null}
 
       {photos.length > 0 ? (
         <View className="flex-row flex-wrap gap-3">
@@ -194,5 +209,7 @@ function Snap({ householdId }: { householdId: string }) {
 export default function SnapScreen() {
   const me = useMe();
   const household = me.data?.household;
-  return household ? <Snap householdId={household.id} /> : <Loading />;
+  const snaps = me.data?.entitlements?.snaps;
+  const left = snaps && snaps.limit !== null ? Math.max(0, snaps.limit - snaps.used) : null;
+  return household ? <Snap householdId={household.id} snapsLeft={left} /> : <Loading />;
 }
