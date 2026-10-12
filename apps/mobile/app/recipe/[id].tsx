@@ -11,21 +11,13 @@ import { Sticker } from "@/components/scrap/sticker";
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
 import { Text } from "@/components/ui/text";
+import { useStartCook } from "@/lib/cook";
+import { amount } from "@/lib/format";
 import { useAdaptation, useMe, useRecipe } from "@/lib/queries";
 import { useT } from "@/lib/use-t";
 import { cn } from "@/lib/utils";
 
 const SERVINGS_STEP = 0.5;
-const FRACTIONS: Record<string, string> = { "0.25": "¼", "0.5": "½", "0.75": "¾" };
-
-/** A quantity as a cook reads it: "400 g", "1½", "2 tbsp". */
-function amount(quantity: number, unit: Unit) {
-  const whole = Math.floor(quantity);
-  const part = FRACTIONS[String(Math.round((quantity - whole) * 100) / 100)];
-  const number = part ? `${whole === 0 ? "" : whole}${part}` : String(quantity);
-  return unit === "piece" ? number : `${number} ${unit}`;
-}
-
 type Shown = {
   key: string;
   ingredient_id: string;
@@ -49,6 +41,7 @@ function Recipe({
   const router = useRouter();
   const [controls, setControls] = useState<Partial<AdaptationControls>>({});
   const adaptation = useAdaptation(householdId, recipe.recipe_version_id, controls);
+  const start = useStartCook();
   const fitted = adaptation.data;
   const set = (patch: Partial<AdaptationControls>) =>
     setControls((current) => ({ ...current, ...patch }));
@@ -245,6 +238,22 @@ function Recipe({
           <StepCard key={step.index} step={step} number={step.index + 1} />
         ))}
       </Card>
+
+      {fitted ? (
+        <Button
+          disabled={start.isPending || adaptation.isFetching}
+          onPress={() =>
+            start.mutate(fitted.adaptation_id, {
+              onSuccess: (cook) => router.push(`/cook/${cook.id}`),
+            })
+          }
+        >
+          <Text>{t("recipe.start")}</Text>
+        </Button>
+      ) : null}
+      {start.isError ? (
+        <Text className="font-medium text-sm text-tomato">{t("common.error")}</Text>
+      ) : null}
 
       {fitted && fitted.recipe.tips.length > 0 ? (
         <Card tilt={0.5} className="gap-2">

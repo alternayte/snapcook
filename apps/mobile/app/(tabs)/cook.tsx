@@ -255,6 +255,11 @@ function Cook({ householdId, profile }: { householdId: string; profile: Househol
           ))}
         </Card>
       ) : null}
+      <Link href="/cooked" asChild>
+        <Button variant="quiet">
+          <Text>{t("cooked.link")}</Text>
+        </Button>
+      </Link>
     </Page>
   );
 }

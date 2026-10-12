@@ -27,7 +27,8 @@
           "cameraPermission": "SnapCook uses the camera to photograph your fridge and cupboards.",
           "photosPermission": "SnapCook reads the photos you choose, to list the food in them."
         }
-      ]
+      ],
+      "expo-notifications"
     ],
     "experiments": {
       "typedRoutes": true

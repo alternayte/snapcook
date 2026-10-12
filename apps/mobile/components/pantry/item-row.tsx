@@ -4,10 +4,9 @@ import { Pressable, View } from "react-native";
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
 import { Text } from "@/components/ui/text";
+import { STEP } from "@/lib/format";
 import { useT } from "@/lib/use-t";
 
-// One press of a stepper, by unit: one of a counted thing, 50 g, 100 ml.
-const STEP: Record<Unit, number> = { piece: 1, g: 50, ml: 100, tbsp: 1, tsp: 1, cup: 1 };
 // The units offered when an item has no quantity yet.
 const FIRST_UNITS: Unit[] = ["piece", "g", "ml"];
 
