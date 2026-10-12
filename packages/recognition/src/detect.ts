@@ -32,17 +32,24 @@ const PLACES: Record<Location, string> = {
   counter: "on a kitchen counter",
 };
 
+/** What the model writes for anything it cannot see into. Such an item is never matched. */
+export const CONTAINER = "container";
+
 export const detectionHint = (location: Location) =>
   [
     `This photo was taken ${PLACES[location]}. List every food item you can see.`,
-    "Report only what is visible. Do not infer what a closed or opaque container holds:",
-    'report it with name "container" and canonical_guess "container", and give label_text if a label is readable.',
-    'name: the item as it appears, in a few words. canonical_guess: the plain ingredient name a recipe would use, singular, in English (for example "chicken thigh", "bell pepper", "whole milk").',
+    "Report only what is visible. Never guess what a closed, opaque, wrapped or unlabelled container, bag, bowl, jar or bottle holds.",
+    `For each such item write exactly "${CONTAINER}" as both name and canonical_guess, and give label_text if a label is readable. Do not describe it.`,
+    "A clear jar, bag or bottle is different: when you can see the food inside, or read what it is on the label, name that food.",
+    "name: the item as it appears, in a few words.",
+    "canonical_guess: the food itself as a recipe names it, in English, singular and generic. No brand. No pack type or size. No colour, unless the colour is part of the ingredient's usual name.",
+    'Examples: a green carton of eggs is "egg". A green apple is "apple". A branded tub of soft cheese is "cream cheese". A jar of pickled cucumbers is "gherkins". A red onion is "red onion". Tinned beans keep their kind: "tinned kidney beans".',
+    "List each distinct food once. When there are several of the same food, give the count instead of repeating it.",
     'quantity and unit: only when you can count the items or read an amount. Count separate pieces with unit "piece". Use g or ml for an amount read from a label. Otherwise both are null.',
     "count_confidence: how sure the amount is, 0 to 1; null when there is no amount.",
     "is_packaged: true for anything in its shop packaging. label_text: the words and weight on the label, exactly as printed, or null.",
     "confidence: how sure you are of what the item is, 0 to 1.",
-    "List one entry per distinct item. Do not list shelves, crockery, appliances or anything that is not food or drink.",
+    "Do not list shelves, crockery, appliances or anything that is not food or drink.",
     "A photo with no food returns an empty list.",
   ].join("\n");
 
@@ -82,6 +89,9 @@ export function normaliseQuantity(
   return { quantity: Math.round(item.quantity * 100) / 100, unit };
 }
 
+// A guess that names a vessel instead of a food.
+const VESSEL = /\b(container|bowl|bag|bottle|jar|tub|box|packet|package|carton|tray|tin|can)\b/i;
+
 /** Sends one photo to the vision model and returns what it saw. */
 export function detect(
   llm: Llm,
@@ -105,14 +115,14 @@ export async function toProposals(
 ): Promise<Omit<SnapProposal, "existing_item_id">[]> {
   const exact = await Promise.all(
     items.map(async (item) =>
-      item.canonical_guess.toLowerCase() === "container"
+      item.canonical_guess.trim().toLowerCase() === CONTAINER
         ? undefined
         : ((await matcher.match(item.canonical_guess)) ?? (await matcher.match(item.name))),
     ),
   );
   const unmatched = items
     .map((item, i) => ({ item, i }))
-    .filter(({ item, i }) => !exact[i] && item.canonical_guess.toLowerCase() !== "container");
+    .filter(({ item, i }) => !exact[i] && item.canonical_guess.trim().toLowerCase() !== CONTAINER);
   const near = await matcher.nearest(
     unmatched.map(({ item }) => item.canonical_guess),
     llm,
@@ -123,7 +133,8 @@ export async function toProposals(
   return items.map((item, i) => {
     const hit = exact[i] ?? byMeaning.get(i);
     return {
-      name: item.name,
+      // An unmatched item that the model described by its vessel is a container to name later.
+      name: !hit && VESSEL.test(item.canonical_guess) ? CONTAINER : item.name,
       ingredient_id: hit?.id ?? null,
       ...normaliseQuantity(item),
       count_confidence: item.quantity === null ? null : item.count_confidence,

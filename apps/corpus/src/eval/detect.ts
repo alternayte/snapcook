@@ -2,7 +2,7 @@ import { readdir } from "node:fs/promises";
 import { extname, join } from "node:path";
 import { createDb, migrate, recordLlmCall } from "@snapcook/db";
 import { createOpenRouterLlm } from "@snapcook/llm";
-import { createIngredientMatcher, detect, toProposals } from "@snapcook/recognition";
+import { CONTAINER, createIngredientMatcher, detect, toProposals } from "@snapcook/recognition";
 import { Location } from "@snapcook/schema";
 import { z } from "zod";
 
@@ -102,8 +102,11 @@ export async function evalDetect([dir = ".internal/golden"]: string[]) {
     const byId = new Map(
       await Promise.all(names.map(async (n) => [(await matcher.match(n))?.id, n] as const)),
     );
-    // Free-text proposals count against precision under their own name.
-    const proposed = proposals.map((p) => (p.ingredient_id && byId.get(p.ingredient_id)) || p.name);
+    // Free-text proposals count against precision under their own name. A closed container
+    // reported as one is the intended answer, so it is left out of the count.
+    const proposed = proposals
+      .filter((p) => p.ingredient_id !== null || p.name.trim().toLowerCase() !== CONTAINER)
+      .map((p) => (p.ingredient_id && byId.get(p.ingredient_id)) || p.name);
     const expected = await Promise.all(
       label.ingredients.map(async (n) => (await matcher.match(n))?.name ?? n),
     );

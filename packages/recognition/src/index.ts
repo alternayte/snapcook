@@ -1,4 +1,5 @@
 export {
+  CONTAINER,
   type DetectedItem,
   DetectionOutput,
   detect,
