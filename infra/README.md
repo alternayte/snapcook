@@ -51,7 +51,7 @@ Restore after a loss:
 
 ## Logs
 
-The API writes one JSON line for each request, with the route, the status, the time taken and the household. The platform's log viewer shows them.
+The API writes one JSON line for each request, with the path, the status, the time taken and the household. The platform's log viewer shows them.
 
 ## Phone builds
 

@@ -103,7 +103,7 @@ export function createApp(deps: AppDeps) {
           time: new Date(started).toISOString(),
           id,
           method: c.req.method,
-          route: c.req.routePath,
+          path: c.req.path,
           status: c.res.status,
           ms: Date.now() - started,
           household,
