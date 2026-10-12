@@ -12,6 +12,8 @@ const DETECT = "detect";
 const RETENTION = "photo-retention";
 const COST_ROLLUP = "cost-rollup";
 
+const JOB_ERROR_WINDOW_MS = 60 * 1000;
+
 // A failed detection is tried twice more before the photo is marked failed.
 const DETECT_RETRIES = 2;
 
@@ -51,7 +53,13 @@ export async function rollUpCosts(db: Db, now = new Date()) {
 /** Starts the background jobs of the API process, on the same database. */
 export async function startJobs(databaseUrl: string, deps: DetectionDeps) {
   const boss = new PgBoss(databaseUrl);
-  boss.on("error", (error) => console.error("job runner:", error));
+  // The runner reports its own failures, such as a lost database connection. One within the
+  // last minute means the jobs cannot be trusted to run.
+  let lastError = 0;
+  boss.on("error", (error) => {
+    lastError = Date.now();
+    console.error("job runner:", error);
+  });
   await boss.start();
   await boss.createQueue(DETECT, { retryLimit: DETECT_RETRIES, retryBackoff: true });
   await boss.createQueue(RETENTION);
@@ -84,6 +92,7 @@ export async function startJobs(databaseUrl: string, deps: DetectionDeps) {
     enqueueDetect: async (snapId: string) => {
       await boss.send(DETECT, { snapId });
     },
+    healthy: () => Date.now() - lastError > JOB_ERROR_WINDOW_MS,
     stop: () => boss.stop(),
   };
 }

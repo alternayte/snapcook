@@ -1,0 +1,88 @@
+# The stack as it runs on a server behind a reverse proxy that terminates TLS.
+# The proxy reaches the API on port 3000 of the `api` service. No port is published on the host.
+name: snapcook
+
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
+    restart: always
+    expose:
+      - "3000"
+    environment:
+      DATABASE_URL: postgres://snapcook:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/snapcook
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+      PUBLIC_URL: ${PUBLIC_URL:?set PUBLIC_URL}
+      AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET}
+      APP_SCHEMES: ${APP_SCHEMES:-snapcook://}
+      OWNER_EMAILS: ${OWNER_EMAILS:-}
+      REVENUECAT_WEBHOOK_SECRET: ${REVENUECAT_WEBHOOK_SECRET:-}
+      APPLE_CLIENT_ID: ${APPLE_CLIENT_ID:-}
+      APPLE_CLIENT_SECRET: ${APPLE_CLIENT_SECRET:-}
+      APPLE_BUNDLE_ID: ${APPLE_BUNDLE_ID:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:?set OPENROUTER_API_KEY}
+      MODEL_VISION: ${MODEL_VISION:?set MODEL_VISION}
+      MODEL_ADAPT: ${MODEL_ADAPT:?set MODEL_ADAPT}
+      MODEL_REVIEW: ${MODEL_REVIEW:?set MODEL_REVIEW}
+      MODEL_WRITE: ${MODEL_WRITE:?set MODEL_WRITE}
+      MODEL_EMBED: ${MODEL_EMBED:?set MODEL_EMBED}
+      IMAGE_DIR: /data/images
+      SNAP_DIR: /data/snaps
+    volumes:
+      - snaps:/data/snaps
+      - images:/data/images
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "bun", "-e", "fetch('http://localhost:3000/api/v1/healthz').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  postgres:
+    image: pgvector/pgvector:pg17
+    restart: always
+    command: ["postgres", "-c", "shared_buffers=${PG_SHARED_BUFFERS:-1GB}"]
+    environment:
+      POSTGRES_USER: snapcook
+      POSTGRES_DB: snapcook
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    volumes:
+      - pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U snapcook -d snapcook"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backup:
+    build:
+      context: backup
+    restart: always
+    environment:
+      PGHOST: postgres
+      PGUSER: snapcook
+      PGDATABASE: snapcook
+      PGPASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      # An S3-compatible bucket, for example s3:https://<account>.r2.cloudflarestorage.com/<bucket>.
+      # With none set, dumps stay on this server only.
+      RESTIC_REPOSITORY: ${RESTIC_REPOSITORY:-}
+      RESTIC_PASSWORD: ${RESTIC_PASSWORD:-}
+      AWS_ACCESS_KEY_ID: ${BACKUP_S3_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${BACKUP_S3_SECRET:-}
+    volumes:
+      - backups:/backups
+      - images:/data/images:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pg:
+  snaps:
+  images:
+  backups:

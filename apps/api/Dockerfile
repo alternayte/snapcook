@@ -19,6 +19,9 @@ COPY packages/recognition packages/recognition
 COPY packages/schema packages/schema
 COPY apps/api apps/api
 
+# The data directories belong to the user the API runs as, and a new volume takes that over.
+RUN mkdir -p /data/snaps /data/images && chown -R bun:bun /data
+
 USER bun
 ENV NODE_ENV=production PORT=3000
 EXPOSE 3000

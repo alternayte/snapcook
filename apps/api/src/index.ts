@@ -53,6 +53,8 @@ const app = createServer({
   corsOrigins,
   imageDir: process.env.IMAGE_DIR || undefined,
   adaptModel: required("MODEL_ADAPT"),
+  log: (line) => console.log(line),
+  jobsHealthy: jobs.healthy,
   billingWebhookSecret: process.env.REVENUECAT_WEBHOOK_SECRET || undefined,
   ownerEmails: list("OWNER_EMAILS").map((email) => email.toLowerCase()),
 });

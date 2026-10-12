@@ -32,6 +32,10 @@ export type AppDeps = {
   /** A household created by one of these addresses gets the owner plan. Lower case. */
   ownerEmails: string[];
   snaps: Omit<SnapDeps, "db">;
+  /** Receives one line per request, for the server's log. Unset means no request log. */
+  log?: (line: string) => void;
+  /** Says whether the background jobs are running. Unset means there are none to check. */
+  jobsHealthy?: () => boolean;
   /** The secret the store service sends with each subscription event. Unset turns the route off. */
   billingWebhookSecret?: string;
   /** The id of the model that adapts recipes, stored with each adaptation. */
@@ -85,9 +89,29 @@ export function createApp(deps: AppDeps) {
         credentials: true,
       }),
     )
+    .use(async (c, next) => {
+      const started = Date.now();
+      const id = crypto.randomUUID();
+      c.header("x-request-id", id);
+      await next();
+      // The household is known only after the session is read, so it is taken from the context here.
+      const household = (c.var as { household?: { id: string } }).household?.id ?? null;
+      deps.log?.(
+        JSON.stringify({
+          time: new Date(started).toISOString(),
+          id,
+          method: c.req.method,
+          route: c.req.routePath,
+          status: c.res.status,
+          ms: Date.now() - started,
+          household,
+        }),
+      );
+    })
     .get("/healthz", async (c) => {
       try {
         await db.execute(sql`select 1`);
+        if (deps.jobsHealthy && !deps.jobsHealthy()) throw new Error("jobs are down");
         return c.json({ status: "ok" as const });
       } catch {
         return c.json({ status: "unavailable" as const }, 503);
