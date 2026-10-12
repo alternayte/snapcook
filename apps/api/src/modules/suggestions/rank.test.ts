@@ -122,6 +122,17 @@ test("a dish one or two core ingredients short is a near miss, not a result", ()
   expect(near).toEqual([{ recipe_version_id: "creamy", missing_core: ["cream"] }]);
 });
 
+test("an assumed staple covers an ingredient and is not listed as something the household has", () => {
+  const salty = recipe("salty", {
+    lines: [
+      ["salt", "core"],
+      ["chicken", "core"],
+    ],
+  });
+  const [result] = rank(corpus([salty]), kitchen(["chicken"]), request).ranked;
+  expect(result?.have).toEqual(["chicken"]);
+});
+
 test("a dish with none of its core ingredients on hand is not a near miss", () => {
   const plain = recipe("plain", { lines: [["chicken", "core"]] });
   expect(rank(corpus([plain]), kitchen(["rice"]), request).near).toEqual([]);

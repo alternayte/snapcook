@@ -1,5 +1,5 @@
 import { Redirect, Tabs } from "expo-router";
-import { House, type LucideIcon, Refrigerator } from "lucide-react-native";
+import { ChefHat, House, type LucideIcon, Refrigerator } from "lucide-react-native";
 import type { ColorValue } from "react-native";
 import { Failed, Loading } from "@/components/scrap/status";
 import { useMe } from "@/lib/queries";
@@ -44,6 +44,7 @@ export default function TabsLayout() {
           tabBarIcon: icon(Refrigerator),
         }}
       />
+      <Tabs.Screen name="cook" options={{ title: t("tabs.cook"), tabBarIcon: icon(ChefHat) }} />
       <Tabs.Screen
         name="household"
         options={{

@@ -188,7 +188,7 @@ const list = (names: string[]) =>
 /** The one line under a result, built from its lists. It states facts; nothing is generated. */
 export function reasonFor(result: Scored, name: (id: string) => string) {
   const parts: string[] = [];
-  const used = (result.uses_use_soon.length > 0 ? result.uses_use_soon : result.have).slice(0, 3);
+  const used = result.have.slice(0, 3);
   if (used.length > 0) parts.push(`Uses the ${list(used.map(name))}`);
   for (const swap of result.substituted.slice(0, 2)) {
     parts.push(`${name(swap.substitute_id)} in place of ${name(swap.ingredient_id)}`);

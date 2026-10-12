@@ -6,6 +6,8 @@ import type {
   PantryItem,
   PantryPatch,
   ProfileInput,
+  SuggestInput,
+  SuggestResponse,
 } from "@snapcook/schema";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, api, unwrap } from "@/lib/api";
@@ -134,5 +136,13 @@ export function useIngredientSearch(text: string) {
           api.ingredients.$get({ query: { q } }),
         )
       ).ingredients,
+  });
+}
+
+/** Asks for dishes, or for the next page of an earlier answer when a cursor is given. */
+export function useSuggest() {
+  return useMutation({
+    mutationFn: ({ input, cursor }: { input: SuggestInput; cursor?: string }) =>
+      unwrap<SuggestResponse>(api.suggestions.$post({ json: input, query: { cursor } })),
   });
 }

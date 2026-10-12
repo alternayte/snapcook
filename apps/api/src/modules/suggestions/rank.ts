@@ -149,6 +149,7 @@ export function rank(
     let ruledOut = false;
     let supporting = 0;
     let supportingCovered = 0;
+    let coreHave = 0;
 
     for (const line of needed) {
       const id = line.ingredient_id;
@@ -161,7 +162,12 @@ export function rank(
       }
       if (line.role === "supporting") supporting += 1;
       if (direct) {
-        if (line.role !== "staple") have.push(id);
+        // Only what is really in the pantry is listed; an assumed staple is not. What defines
+        // the dish comes first.
+        if (!stocked.has(id)) {
+          // Assumed from the profile.
+        } else if (line.role === "core") have.splice(coreHave++, 0, id);
+        else if (line.role !== "staple") have.push(id);
         if (line.role === "supporting") supportingCovered += 1;
         if (dislikes.has(id)) disliked.push(id);
       } else if (swap) {
