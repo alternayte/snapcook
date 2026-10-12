@@ -29,3 +29,15 @@ export type SessionEnv = {
 export type HouseholdEnv = {
   Variables: SessionEnv["Variables"] & { household: Household; role: MemberRole };
 };
+
+/**
+ * Marks a response with the change stamp of the data it holds. Returns true when the client
+ * already has that version, so the route can answer 304 with no body and no query.
+ */
+export function unchanged(c: Context, rev: number) {
+  const tag = `"${rev}"`;
+  c.header("ETag", tag);
+  // The client must ask each time; the stamp makes asking cheap.
+  c.header("Cache-Control", "private, no-cache");
+  return c.req.header("If-None-Match") === tag;
+}

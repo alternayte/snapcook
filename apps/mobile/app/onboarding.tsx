@@ -8,13 +8,21 @@ import { Sticker } from "@/components/scrap/sticker";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Text } from "@/components/ui/text";
-import { useCreateHousehold, useMe, useProfile, useSaveProfile } from "@/lib/queries";
+import {
+  useCreateHousehold,
+  useJoinHousehold,
+  useMe,
+  useProfile,
+  useSaveProfile,
+} from "@/lib/queries";
 import { useT } from "@/lib/use-t";
 
 function NameHousehold() {
   const t = useT();
   const create = useCreateHousehold();
   const [name, setName] = useState("");
+  const join = useJoinHousehold();
+  const [code, setCode] = useState("");
   return (
     <Page>
       <View className="h-24">
@@ -47,6 +55,28 @@ function NameHousehold() {
       >
         <Text>{t("onboarding.household.submit")}</Text>
       </Button>
+      <Card tilt={0.6} className="gap-3">
+        <View className="gap-1">
+          <Text variant="heading">{t("onboarding.join.title")}</Text>
+          <Text variant="small">{t("onboarding.join.help")}</Text>
+        </View>
+        <Field
+          label={t("onboarding.join.code")}
+          value={code}
+          onChangeText={(next) => setCode(next.toUpperCase())}
+          autoCapitalize="characters"
+          autoCorrect={false}
+          maxLength={6}
+          error={join.isError ? t("onboarding.join.failed") : undefined}
+        />
+        <Button
+          variant="paper"
+          disabled={code.trim().length !== 6 || join.isPending}
+          onPress={() => join.mutate(code.trim())}
+        >
+          <Text>{t("onboarding.join.submit")}</Text>
+        </Button>
+      </Card>
     </Page>
   );
 }

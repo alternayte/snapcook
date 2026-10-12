@@ -2,7 +2,7 @@ import { Redirect, Tabs } from "expo-router";
 import { ChefHat, House, type LucideIcon, Refrigerator, ShoppingBasket } from "lucide-react-native";
 import type { ColorValue } from "react-native";
 import { Failed, Loading } from "@/components/scrap/status";
-import { useMe } from "@/lib/queries";
+import { useHouseholdSync } from "@/lib/queries";
 import { COLORS } from "@/lib/theme";
 import { useT } from "@/lib/use-t";
 
@@ -16,7 +16,7 @@ const icon = (Icon: LucideIcon) =>
 
 export default function TabsLayout() {
   const t = useT();
-  const me = useMe();
+  const me = useHouseholdSync();
   if (me.isPending) return <Loading />;
   if (me.isError) return <Failed onRetry={() => me.refetch()} />;
   if (!me.data) return <Redirect href="/sign-in" />;

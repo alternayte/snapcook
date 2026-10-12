@@ -87,3 +87,19 @@ export type Me = z.infer<typeof Me>;
 
 export const MatchTextInput = z.object({ text: z.string().trim().min(1).max(500) });
 export type MatchTextInput = z.infer<typeof MatchTextInput>;
+
+export const JoinHouseholdInput = z.object({
+  code: z.string().trim().toUpperCase().length(INVITE_CODE_LENGTH),
+});
+
+export const InviteView = z.object({ code: z.string(), expires_at: z.date() });
+export type InviteView = z.infer<typeof InviteView>;
+
+export const MemberView = z.object({
+  user_id: Id,
+  name: z.string(),
+  email: z.string(),
+  role: MemberRole,
+  joined_at: z.date(),
+});
+export type MemberView = z.infer<typeof MemberView>;

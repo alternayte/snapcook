@@ -2,15 +2,11 @@ import type { ListAddItem, ListPatch, Location, SavedCard, ShoppingItem } from "
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, unwrap } from "@/lib/api";
 
-// Two people shop from one list, so the other's ticks must show without a reload.
-const LIST_POLL_MS = 30_000;
-
 export type ShoppingList = { items: ShoppingItem[]; recipes: Record<string, string> };
 
 export function useList(householdId: string) {
   return useQuery({
     queryKey: ["list", householdId],
-    refetchInterval: LIST_POLL_MS,
     queryFn: () => unwrap<ShoppingList>(api.list.$get()),
   });
 }

@@ -13,7 +13,7 @@ import {
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
-import { fail, type HouseholdEnv } from "../../http";
+import { fail, type HouseholdEnv, unchanged } from "../../http";
 import { mergeInto, sumAmounts } from "../pantry/merge";
 import { parseEntry } from "../pantry/parse";
 import { aisleFor } from "./aisle";
@@ -92,7 +92,10 @@ export function listRoutes(db: Db, matcher: IngredientMatcher) {
   }
 
   return new Hono<HouseholdEnv>()
-    .get("/list", async (c) => c.json(await list(c.var.household.id)))
+    .get("/list", async (c) => {
+      if (unchanged(c, c.var.household.list_rev)) return c.body(null, 304);
+      return c.json(await list(c.var.household.id));
+    })
     .post("/list/items", body(ListAddInput), async (c) => {
       const householdId = c.var.household.id;
       const lines = await Promise.all(

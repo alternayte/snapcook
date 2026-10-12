@@ -10,7 +10,7 @@ import {
 import { and, asc, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
-import { fail, type HouseholdEnv } from "../../http";
+import { fail, type HouseholdEnv, unchanged } from "../../http";
 import { type Incoming, mergeInto } from "./merge";
 import { parseEntry } from "./parse";
 
@@ -55,6 +55,7 @@ export function pantryRoutes(db: Db, matcher: IngredientMatcher) {
 
   return new Hono<HouseholdEnv>()
     .get("/pantry", async (c) => {
+      if (unchanged(c, c.var.household.pantry_rev)) return c.body(null, 304);
       const items = await db
         .select()
         .from(pantryItems)

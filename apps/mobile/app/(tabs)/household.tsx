@@ -1,6 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { View } from "react-native";
+import { Members } from "@/components/profile/members";
 import { ProfileForm } from "@/components/profile/profile-form";
 import { Label, Page } from "@/components/scrap/paper";
 import { Failed, Loading } from "@/components/scrap/status";
@@ -56,6 +57,11 @@ export default function HouseholdScreen() {
         <Text variant="display">{household.name}</Text>
         <Text variant="small">{t("household.signedInAs", { email: me.data.user.email })}</Text>
       </View>
+      <Members
+        householdId={household.id}
+        userId={me.data.user.id}
+        isOwner={me.data.role === "owner"}
+      />
       <Profile householdId={household.id} />
       <Button variant="quiet" onPress={signOut}>
         <Text>{t("auth.signOut")}</Text>

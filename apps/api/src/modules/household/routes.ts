@@ -2,7 +2,14 @@ import { zValidator } from "@hono/zod-validator";
 import { type Db, schema } from "@snapcook/db";
 import type { Llm } from "@snapcook/llm";
 import type { IngredientMatcher } from "@snapcook/recognition";
-import { CreateHouseholdInput, MatchTextInput, type Me, ProfileInput } from "@snapcook/schema";
+import {
+  CreateHouseholdInput,
+  Id,
+  JoinHouseholdInput,
+  MatchTextInput,
+  type Me,
+  ProfileInput,
+} from "@snapcook/schema";
 import { eq, inArray, or } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
@@ -14,6 +21,7 @@ import {
   replaceProfile,
   unknownIngredients,
 } from "./service";
+import { createInvite, joinHousehold, members, removeMember } from "./sharing";
 
 async function me(db: Db, user: SessionEnv["Variables"]["user"]): Promise<Me> {
   const member = await membership(db, user.id);
@@ -43,6 +51,24 @@ export function sessionRoutes(db: Db, ownerEmails: string[]) {
         await createHousehold(db, c.var.user, c.req.valid("json").name, ownerEmails);
         return c.json(await me(db, c.var.user), 201);
       },
+    )
+    .post(
+      "/household/join",
+      zValidator("json", JoinHouseholdInput, (result, c) =>
+        result.success ? undefined : fail(c, 400, "validation", "The code has six characters."),
+      ),
+      async (c) => {
+        const outcome = await joinHousehold(db, c.var.user.id, c.req.valid("json").code);
+        if (outcome === "already_in_household") {
+          return fail(c, 403, "forbidden", "You already belong to a household.", {
+            reason: "already_in_household",
+          });
+        }
+        if (outcome === "bad_code") {
+          return fail(c, 404, "not_found", "That code is not valid, or it has been used.");
+        }
+        return c.json(await me(db, c.var.user));
+      },
     );
 }
 
@@ -60,6 +86,31 @@ const Matched = z.object({ names: z.array(z.string()) });
 export function householdRoutes(db: Db, llm: Llm, matcher: IngredientMatcher) {
   const { ingredients } = schema;
   return new Hono<HouseholdEnv>()
+    .get("/household/members", async (c) =>
+      c.json({ members: await members(db, c.var.household.id) }),
+    )
+    .post("/household/invites", async (c) =>
+      c.json(await createInvite(db, c.var.household.id), 201),
+    )
+    .delete(
+      "/household/members/:userId",
+      zValidator("param", z.object({ userId: Id }), (result, c) =>
+        result.success ? undefined : fail(c, 404, "not_found", "No such member."),
+      ),
+      async (c) => {
+        const outcome = await removeMember(
+          db,
+          c.var.household.id,
+          { id: c.var.user.id, role: c.var.role },
+          c.req.valid("param").userId,
+        );
+        if (outcome === "not_found") return fail(c, 404, "not_found", "No such member.");
+        if (outcome === "forbidden") {
+          return fail(c, 403, "forbidden", "Only the owner can remove another member.");
+        }
+        return c.body(null, 204);
+      },
+    )
     .get("/household/profile", async (c) => {
       const profile = await profileOf(db, c.var.household.id);
       if (!profile) return fail(c, 404, "not_found", "This household has no profile.");

@@ -270,6 +270,20 @@ export const en = {
   "saved.saved": "Kept. Tap to remove",
   "saved.row": "{cuisine} · {minutes} min",
 
+  "onboarding.join.title": "Have a code?",
+  "onboarding.join.help": "Someone in your household can make one for you.",
+  "onboarding.join.code": "Invite code",
+  "onboarding.join.submit": "Join their household",
+  "onboarding.join.failed": "That code is not valid, or it has been used.",
+
+  "members.title": "Who's in",
+  "members.owner": "owner",
+  "members.you": "you",
+  "members.remove": "Remove {name}",
+  "members.leave": "Leave this household",
+  "members.invite": "Invite someone",
+  "members.invite.code": "Give them this code. It works once, for 7 days.",
+
   "household.title": "Our household",
   "household.signedInAs": "Signed in as {email}",
 } as const;

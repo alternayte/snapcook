@@ -3,7 +3,7 @@ import "@/global.css";
 import { Caveat_700Bold } from "@expo-google-fonts/caveat";
 import { DMSans_400Regular, DMSans_500Medium, DMSans_700Bold } from "@expo-google-fonts/dm-sans";
 import { Fraunces_700Bold, Fraunces_800ExtraBold } from "@expo-google-fonts/fraunces";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { focusManager, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import { ThemeProvider } from "expo-router/react-navigation";
@@ -11,6 +11,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
 import { IntlProvider } from "react-intl";
+import { AppState, Platform } from "react-native";
 import { en } from "@/lib/messages/en";
 import { NAV_THEME } from "@/lib/theme";
 
@@ -33,6 +34,15 @@ export default function RootLayout() {
   useEffect(() => {
     if (ready) SplashScreen.hideAsync();
   }, [ready]);
+
+  // On a phone, coming back to the app counts as looking at it again, so stale data is re-read.
+  useEffect(() => {
+    if (Platform.OS === "web") return;
+    const listener = AppState.addEventListener("change", (state) =>
+      focusManager.setFocused(state === "active"),
+    );
+    return () => listener.remove();
+  }, []);
 
   if (!ready) return null;
 

@@ -114,6 +114,23 @@ test("a pantry write and a profile write each raise their own change stamp", asy
   expect(afterPantry?.profile_rev).toBe(before?.profile_rev);
 });
 
+test("an unchanged pantry answers 304 to a client that has it, and 200 again after a write", async () => {
+  const user = await signUpWithHousehold("etag@example.com");
+  const first = await call(user, "GET", "/pantry");
+  const tag = first.headers.get("etag") ?? "";
+  expect(tag).not.toBe("");
+  const same = await server.request("/api/v1/pantry", {
+    headers: { ...user, "if-none-match": tag },
+  });
+  expect(same.status).toBe(304);
+  await call(user, "POST", "/pantry/items", { text: "butter", location: "fridge" });
+  const changed = await server.request("/api/v1/pantry", {
+    headers: { ...user, "if-none-match": tag },
+  });
+  expect(changed.status).toBe(200);
+  expect(changed.headers.get("etag")).not.toBe(tag);
+});
+
 test("the profile is replaced as a whole, keeps who added an allergen, and refuses unknown ingredients", async () => {
   const user = await signUpWithHousehold("profile@example.com");
   const profile = {
