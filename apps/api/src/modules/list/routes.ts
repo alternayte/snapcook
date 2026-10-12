@@ -42,13 +42,14 @@ type Line = {
 async function toLine(item: ListAddItem, matcher: IngredientMatcher): Promise<Line> {
   if (!("text" in item)) return item;
   const whole = await matcher.match(item.text);
+  // The line keeps the words the person typed.
   if (whole)
-    return { ingredient_id: whole.id, display_name: whole.name, quantity: null, unit: null };
+    return { ingredient_id: whole.id, display_name: item.text, quantity: null, unit: null };
   const parsed = parseEntry(item.text);
   const hit = await matcher.match(parsed.name);
   return {
     ingredient_id: hit?.id ?? null,
-    display_name: hit?.name ?? parsed.name,
+    display_name: parsed.name,
     quantity: parsed.quantity,
     unit: parsed.unit,
   };
