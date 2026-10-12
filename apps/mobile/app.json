@@ -20,7 +20,14 @@
       "expo-font",
       "expo-secure-store",
       "expo-web-browser",
-      "expo-image"
+      "expo-image",
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "SnapCook uses the camera to photograph your fridge and cupboards.",
+          "photosPermission": "SnapCook reads the photos you choose, to list the food in them."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

@@ -1,4 +1,5 @@
 import { Location, type MergeChoice } from "@snapcook/schema";
+import { Link } from "expo-router";
 import { useState } from "react";
 import { View } from "react-native";
 import { ItemRow } from "@/components/pantry/item-row";
@@ -77,6 +78,12 @@ function Pantry({ householdId }: { householdId: string }) {
         </Text>
       </View>
 
+      <Link href="/snap" asChild>
+        <Button>
+          <Text>{t("pantry.snap")}</Text>
+        </Button>
+      </Link>
+
       <Card tape tilt={-0.6} className="gap-3 pt-6">
         <Field
           label={t("pantry.add.label")}
@@ -138,7 +145,11 @@ function Pantry({ householdId }: { householdId: string }) {
             </View>
           </View>
         ) : (
-          <Button disabled={text.trim() === "" || add.isPending} onPress={() => submit()}>
+          <Button
+            variant="paper"
+            disabled={text.trim() === "" || add.isPending}
+            onPress={() => submit()}
+          >
             <Text>{t("pantry.add.submit")}</Text>
           </Button>
         )}

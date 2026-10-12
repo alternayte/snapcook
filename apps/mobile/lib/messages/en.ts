@@ -109,6 +109,30 @@ export const en = {
   "location.pantry": "Cupboard",
   "location.counter": "Counter",
 
+  "pantry.snap": "Snap the fridge",
+
+  "snap.title": "Snap what you have",
+  "snap.note": "one shelf at a time works best",
+  "snap.where": "Where are you?",
+  "snap.camera": "Take a photo",
+  "snap.gallery": "Choose photos",
+  "snap.limit": "Up to {count} photos at a time.",
+  "snap.photo.sending": "Sending…",
+  "snap.photo.looking": "Looking…",
+  "snap.photo.done": "{count, plural, =0 {Nothing to eat here} one {# item} other {# items}}",
+  "snap.photo.failed": "Could not read this one",
+  "snap.review": "Is this right?",
+  "snap.review.help": "Tick what goes in. Tap a name to fix it. Faint rows are guesses.",
+  "snap.row.name": "Name",
+  "snap.row.amount": "Amount",
+  "snap.row.noAmount": "some",
+  "snap.row.edit": "Fix {name}",
+  "snap.row.done": "Done",
+  "snap.row.have": "You have this already:",
+  "snap.commit":
+    "{count, plural, =0 {Nothing ticked} one {Put # item away} other {Put # items away}}",
+  "snap.manual": "Type it instead",
+
   "household.title": "Our household",
   "household.signedInAs": "Signed in as {email}",
 } as const;
