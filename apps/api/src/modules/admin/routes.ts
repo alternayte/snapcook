@@ -1,10 +1,11 @@
 import type { Db } from "@snapcook/db";
 import { type DeviceStep, RecipeStatus } from "@snapcook/schema";
 import { Hono } from "hono";
-import { basicAuth } from "hono/basic-auth";
 import { csrf } from "hono/csrf";
 import { html, raw } from "hono/html";
 import type { HtmlEscapedString } from "hono/utils/html";
+import type { Auth } from "../auth/auth";
+import { membership } from "../household/service";
 import { getRecipe, listRecipes, setStatus } from "./queries";
 import { styles } from "./styles";
 
@@ -46,11 +47,51 @@ const steps = (list: DeviceStep[]) => html`<ol class="steps">
   )}
 </ol>`;
 
-/** The recipe review pages. One shared password until accounts exist. */
-export function createAdmin({ db, password }: { db: Db; password: string }) {
+const loginPage = (failed: boolean) =>
+  page(
+    "Sign in",
+    html`<h1>Sign in</h1>
+      ${failed ? html`<p class="mark">That address and password do not match an owner account.</p>` : ""}
+      <form class="login" method="post" action="/admin/login">
+        <label>Email <input type="email" name="email" autocomplete="username" required /></label>
+        <label>Password <input type="password" name="password" autocomplete="current-password" required /></label>
+        <button type="submit">Sign in</button>
+      </form>`,
+  );
+
+/** The recipe review pages. Only a member of a household on the owner plan may open them. */
+export function createAdmin({ db, auth }: { db: Db; auth: Auth }) {
   const app = new Hono();
   app.use(csrf());
-  app.use(basicAuth({ username: "admin", password }));
+
+  const isOwner = async (headers: Headers) => {
+    const session = await auth.api.getSession({ headers });
+    if (!session) return false;
+    return (await membership(db, session.user.id))?.household.plan === "owner";
+  };
+
+  app.get("/login", (c) => c.html(loginPage(false)));
+  app.post("/login", async (c) => {
+    const form = await c.req.parseBody();
+    const signedIn = await auth.api
+      .signInEmail({
+        body: { email: String(form.email ?? ""), password: String(form.password ?? "") },
+        asResponse: true,
+      })
+      .catch(() => undefined);
+    const cookies = signedIn?.ok ? signedIn.headers.getSetCookie() : [];
+    const cookie = cookies.map((value) => value.split(";")[0]).join("; ");
+    if (cookies.length === 0 || !(await isOwner(new Headers({ cookie })))) {
+      return c.html(loginPage(true), 401);
+    }
+    for (const value of cookies) c.header("set-cookie", value, { append: true });
+    return c.redirect("/admin/recipes", 303);
+  });
+
+  app.use(async (c, next) => {
+    if (await isOwner(c.req.raw.headers)) return next();
+    return c.req.method === "GET" ? c.redirect("/admin/login", 303) : c.text("forbidden", 403);
+  });
 
   app.get("/recipes", async (c) => {
     const status = RecipeStatus.safeParse(c.req.query("status"));

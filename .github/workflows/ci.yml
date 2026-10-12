@@ -26,6 +26,15 @@ jobs:
     runs-on: ubuntu-latest
     env:
       POSTGRES_PASSWORD: ci
+      PUBLIC_URL: http://127.0.0.1:3000
+      AUTH_SECRET: ci-only-ci-only-ci-only-ci-only-ci-only
+      # The stack only has to start: no model is called.
+      OPENROUTER_API_KEY: unused
+      MODEL_VISION: unused
+      MODEL_ADAPT: unused
+      MODEL_REVIEW: unused
+      MODEL_WRITE: unused
+      MODEL_EMBED: unused
     steps:
       - uses: actions/checkout@v7
       - run: docker compose -f infra/docker-compose.yml up -d --build --wait

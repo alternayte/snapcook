@@ -1,24 +1,70 @@
 import { join } from "node:path";
 import type { Db } from "@snapcook/db";
+import type { Llm } from "@snapcook/llm";
 import { sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { createMiddleware } from "hono/factory";
+import { fail, type HouseholdEnv, type SessionEnv } from "./http";
+import type { Auth } from "./modules/auth/auth";
+import { householdRoutes, sessionRoutes } from "./modules/household/routes";
+import { membership } from "./modules/household/service";
+import { createIngredientMatcher } from "./modules/pantry/match";
+import { pantryRoutes } from "./modules/pantry/routes";
 
 export type AppDeps = {
   db: Db;
+  auth: Auth;
+  llm: Llm;
   /** Browser origins allowed to call the API. Native clients send no Origin header. */
   corsOrigins: string[];
   /** Directory that holds the recipe pictures. With none, no picture is served. */
   imageDir?: string;
+  /** A household created by one of these addresses gets the owner plan. Lower case. */
+  ownerEmails: string[];
 };
 
 // A picture never changes once made: its name is the recipe version it belongs to.
 const IMAGE_NAME = /^[0-9a-f-]{36}\.webp$/;
 
-export function createApp({ db, corsOrigins, imageDir }: AppDeps) {
+export function createApp({ db, auth, llm, corsOrigins, imageDir, ownerEmails }: AppDeps) {
+  const matcher = createIngredientMatcher(db);
+
+  const session = createMiddleware<SessionEnv>(async (c, next) => {
+    const found = await auth.api.getSession({ headers: c.req.raw.headers });
+    if (!found) return fail(c, 401, "unauthenticated", "Sign in first.");
+    const { id, name, email } = found.user;
+    c.set("user", { id, name, email });
+    return next();
+  });
+
+  // The household comes from the session's user and from nowhere else: no route takes its id.
+  const household = createMiddleware<HouseholdEnv>(async (c, next) => {
+    const member = await membership(db, c.var.user.id);
+    if (!member) {
+      return fail(c, 403, "forbidden", "Create or join a household first.", {
+        reason: "no_household",
+      });
+    }
+    c.set("household", member.household);
+    c.set("role", member.role);
+    return next();
+  });
+
+  const signedIn = new Hono<SessionEnv>().use(session).route("/", sessionRoutes(db, ownerEmails));
+  const inHousehold = new Hono<HouseholdEnv>()
+    .use(session, household)
+    .route("/", householdRoutes(db, llm, matcher))
+    .route("/", pantryRoutes(db, matcher));
+
   return new Hono()
     .basePath("/api/v1")
-    .use(cors({ origin: (origin) => (corsOrigins.includes(origin) ? origin : null) }))
+    .use(
+      cors({
+        origin: (origin) => (corsOrigins.includes(origin) ? origin : null),
+        credentials: true,
+      }),
+    )
     .get("/healthz", async (c) => {
       try {
         await db.execute(sql`select 1`);
@@ -36,7 +82,9 @@ export function createApp({ db, corsOrigins, imageDir }: AppDeps) {
         "content-type": "image/webp",
         "cache-control": "public, max-age=31536000, immutable",
       });
-    });
+    })
+    .route("/", signedIn)
+    .route("/", inHousehold);
 }
 
 export type AppType = ReturnType<typeof createApp>;

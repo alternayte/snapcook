@@ -63,6 +63,9 @@ button {
 button:hover { background: var(--ink); color: var(--paper); }
 button.mark { border-color: var(--mark); }
 button.mark:hover { background: var(--mark); color: var(--paper); }
+form.login { display: grid; gap: calc(var(--unit) * 2); max-width: 22rem; }
+form.login label { display: grid; gap: var(--unit); font-size: var(--small); color: var(--ink-soft); }
+form.login input { font: inherit; padding: var(--unit); border: 1px solid var(--rule); background: transparent; color: var(--ink); }
 img.dish { display: block; width: 100%; margin: calc(var(--unit) * 2) 0; border: 1px solid var(--rule); }
 @media (max-width: 40rem) {
   body { padding: calc(var(--unit) * 2); }

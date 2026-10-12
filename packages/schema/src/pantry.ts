@@ -65,3 +65,36 @@ export const SavedRecipe = z.object({
   saved_at: z.date(),
 });
 export type SavedRecipe = z.infer<typeof SavedRecipe>;
+
+/** How to settle a new item that matches one already in the same place. */
+export const MergeChoice = z.enum(["add", "replace", "separate"]);
+export type MergeChoice = z.infer<typeof MergeChoice>;
+
+const PantryFields = z.object({
+  ingredient_id: Id.nullable(),
+  display_name: z.string().trim().min(1).max(120),
+  quantity: Quantity.nullable(),
+  unit: Unit.nullable(),
+  location: Location,
+  use_soon: z.boolean(),
+  expires_on: z.iso.date().nullable(),
+});
+
+/** A new pantry item: typed text such as "2 bell peppers", or its fields. */
+export const PantryAddInput = z.union([
+  z.object({
+    text: z.string().trim().min(1).max(120),
+    location: Location,
+    merge: MergeChoice.optional(),
+  }),
+  PantryFields.partial({ use_soon: true, expires_on: true }).extend({
+    merge: MergeChoice.optional(),
+  }),
+]);
+export type PantryAddInput = z.infer<typeof PantryAddInput>;
+
+export const PantryPatch = PantryFields.partial().refine(
+  (p) => (p.quantity === undefined) === (p.unit === undefined),
+  { message: "quantity and unit change together" },
+);
+export type PantryPatch = z.infer<typeof PantryPatch>;

@@ -17,6 +17,10 @@ export const Household = z.object({
   owner_user_id: Id,
   name: z.string().min(1),
   plan: Plan,
+  /** Change stamps. Each goes up by one on any write to that part of the household's data. */
+  pantry_rev: z.number().int().nonnegative(),
+  list_rev: z.number().int().nonnegative(),
+  profile_rev: z.number().int().nonnegative(),
   created_at: z.date(),
 });
 export type Household = z.infer<typeof Household>;
@@ -61,3 +65,25 @@ export const HouseholdProfile = z.object({
   staples: z.array(Id),
 });
 export type HouseholdProfile = z.infer<typeof HouseholdProfile>;
+
+/** What a client sends to replace the profile. The server records who added each allergen. */
+export const ProfileInput = HouseholdProfile.omit({ household_id: true, allergens: true }).extend({
+  allergens: z.array(Allergen),
+  cannot_eat_text: z.string().max(500).nullable(),
+});
+export type ProfileInput = z.infer<typeof ProfileInput>;
+
+export const CreateHouseholdInput = z.object({ name: z.string().trim().min(1).max(60) });
+export type CreateHouseholdInput = z.infer<typeof CreateHouseholdInput>;
+
+/** Everything the app needs to start: who is signed in, and their household if they have one. */
+export const Me = z.object({
+  user: User.pick({ id: true, name: true, email: true }),
+  household: Household.nullable(),
+  role: MemberRole.nullable(),
+  profile: HouseholdProfile.nullable(),
+});
+export type Me = z.infer<typeof Me>;
+
+export const MatchTextInput = z.object({ text: z.string().trim().min(1).max(500) });
+export type MatchTextInput = z.infer<typeof MatchTextInput>;

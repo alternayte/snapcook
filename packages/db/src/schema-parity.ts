@@ -11,6 +11,9 @@ type Same<A, B> = Equal<A, B> extends true ? true : { expected: B; actual: A };
 
 export const parity: {
   users: Same<Row<"users">, S.User>;
+  authSessions: Same<Row<"authSessions">, S.AuthSession>;
+  authAccounts: Same<Row<"authAccounts">, S.AuthAccount>;
+  authVerifications: Same<Row<"authVerifications">, S.AuthVerification>;
   households: Same<Row<"households">, S.Household>;
   householdMembers: Same<Row<"householdMembers">, S.HouseholdMember>;
   householdInvites: Same<Row<"householdInvites">, S.HouseholdInvite>;
@@ -38,6 +41,9 @@ export const parity: {
   dishStageOutputs: Same<Row<"dishStageOutputs">, S.DishStageOutput>;
 } = {
   users: true,
+  authSessions: true,
+  authAccounts: true,
+  authVerifications: true,
   households: true,
   householdMembers: true,
   householdInvites: true,

@@ -1,10 +1,11 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { llmCalls } from "./llm-calls";
+import * as auth from "./tables/auth";
 import * as corpus from "./tables/corpus";
 import * as household from "./tables/household";
 
-export const schema = { ...household, ...corpus, llmCalls };
+export const schema = { ...household, ...auth, ...corpus, llmCalls };
 
 export function createDb(connectionString: string) {
   const pool = new Pool({ connectionString });

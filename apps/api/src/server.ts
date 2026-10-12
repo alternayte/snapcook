@@ -2,11 +2,10 @@ import { Hono } from "hono";
 import { type AppDeps, createApp } from "./app";
 import { createAdmin } from "./modules/admin/routes";
 
-/** The whole HTTP surface: the API, plus the review pages when a password is configured. */
-export function createServer(deps: AppDeps & { adminPassword?: string }) {
-  const server = new Hono().route("/", createApp(deps));
-  if (deps.adminPassword) {
-    server.route("/admin", createAdmin({ db: deps.db, password: deps.adminPassword }));
-  }
-  return server;
+/** The whole HTTP surface: sign-in, the API, and the review pages. */
+export function createServer(deps: AppDeps) {
+  return new Hono()
+    .on(["GET", "POST"], "/api/auth/*", (c) => deps.auth.handler(c.req.raw))
+    .route("/", createApp(deps))
+    .route("/admin", createAdmin({ db: deps.db, auth: deps.auth }));
 }
