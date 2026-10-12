@@ -188,3 +188,64 @@ export const AdaptResponse = z.object({
   swap_options: z.record(Id, z.array(z.object({ pantry_item_id: Id, name: z.string() }))),
 });
 export type AdaptResponse = z.infer<typeof AdaptResponse>;
+
+export const StartCookInput = z.object({ adaptation_id: Id });
+export const CookProgressInput = z.object({ current_step: z.number().int().nonnegative() });
+
+/** How a cook ends: what it used, what ran out, and how it went. */
+export const FinishCookInput = z.object({
+  /** What to take from the pantry. Empty when the household skips the update. */
+  deductions: z.array(Deduction),
+  /** Pantry items kept as "some" that the household says are now used up. */
+  gone: z.array(Id).default([]),
+  rating: z.number().int().min(1).max(5).optional(),
+  notes: z.string().trim().max(500).optional(),
+});
+export type FinishCookInput = z.infer<typeof FinishCookInput>;
+
+/** A pantry item that ran out in a cook, for the client to offer to the shopping list. */
+export const UsedUp = z.object({ ingredient_id: Id.nullable(), display_name: z.string() });
+
+export const FinishCookResponse = z.discriminatedUnion("outcome", [
+  z.object({
+    outcome: z.literal("finished"),
+    applied: z.array(Deduction),
+    used_up: z.array(UsedUp),
+  }),
+  // Nothing was changed: these deductions have no conversion into their pantry item's unit.
+  z.object({ outcome: z.literal("needs_input"), needs_input: z.array(Deduction) }),
+]);
+export type FinishCookResponse = z.infer<typeof FinishCookResponse>;
+
+/** A cook as the app shows it: the session, and the recipe exactly as it was cooked. */
+export const CookView = z.object({
+  id: Id,
+  recipe_id: Id,
+  recipe_version_id: Id,
+  title: z.string(),
+  image: z.string().nullable(),
+  started_at: z.date(),
+  finished_at: z.date().nullable(),
+  current_step: z.number().int(),
+  rating: z.number().int().nullable(),
+  recipe: AdaptedRecipe,
+  /** Pantry items in the recipe's deductions that have no amount: the client asks about each. */
+  confirm_still_have: z.array(z.object({ pantry_item_id: Id, display_name: z.string() })),
+  /** The pantry item behind each deduction, for the finish sheet. */
+  items: z.record(
+    Id,
+    z.object({ display_name: z.string(), quantity: Quantity.nullable(), unit: Unit.nullable() }),
+  ),
+});
+export type CookView = z.infer<typeof CookView>;
+
+export const RescueInput = z.object({
+  step_index: z.number().int().nonnegative(),
+  text: z.string().trim().min(3).max(300),
+});
+export const RescueResponse = z.object({
+  answer: z.string(),
+  /** Whether the answer is a stored fix for this dish or was written for this question. */
+  source: z.enum(["known_fix", "model"]),
+});
+export type RescueResponse = z.infer<typeof RescueResponse>;

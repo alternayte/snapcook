@@ -8,6 +8,7 @@ import { cors } from "hono/cors";
 import { createMiddleware } from "hono/factory";
 import { fail, type HouseholdEnv, type SessionEnv } from "./http";
 import type { Auth } from "./modules/auth/auth";
+import { cookRoutes } from "./modules/cook/routes";
 import { householdRoutes, sessionRoutes } from "./modules/household/routes";
 import { membership } from "./modules/household/service";
 import { pantryRoutes } from "./modules/pantry/routes";
@@ -67,6 +68,7 @@ export function createApp(deps: AppDeps) {
     .route("/", householdRoutes(db, llm, matcher))
     .route("/", pantryRoutes(db, matcher))
     .route("/", snapRoutes({ db, ...deps.snaps }))
+    .route("/", cookRoutes(db, llm))
     .route("/", recipeRoutes({ db, llm, model: deps.adaptModel }))
     .route("/", suggestionRoutes({ db, llm, corpus: createCorpusReader(db) }));
 
