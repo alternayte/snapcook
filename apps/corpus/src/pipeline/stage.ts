@@ -19,7 +19,7 @@ import { discardDrafts, latest, type Selection, save, selectedDishes } from "./s
 import { indexIngredients, validateDraft, validateVariant } from "./validate";
 import { ingredientList, write } from "./write";
 
-function parseSelection(args: string[]): Selection {
+export function parseSelection(args: string[]): Selection {
   const selection: Selection = {};
   for (let i = 0; i < args.length; i += 2) {
     const [flag, value] = [args[i], args[i + 1]];

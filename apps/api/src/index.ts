@@ -9,6 +9,7 @@ await migrate(pool);
 
 const app = createServer({
   db,
+  imageDir: process.env.IMAGE_DIR || undefined,
   adminPassword: process.env.ADMIN_PASSWORD || undefined,
   corsOrigins: (process.env.CORS_ORIGINS ?? "").split(",").filter(Boolean),
 });

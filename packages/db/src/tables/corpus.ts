@@ -168,6 +168,17 @@ export const recipeDeviceVariants = pgTable(
   ],
 );
 
+export const recipeImages = pgTable("recipe_images", {
+  recipe_version_id: uuid()
+    .primaryKey()
+    .references(() => recipeVersions.id, { onDelete: "cascade" }),
+  file: text(),
+  model: text().notNull(),
+  prompt: text().notNull(),
+  findings: text().array().notNull(),
+  created_at: createdAt(),
+});
+
 export const recipeReports = pgTable(
   "recipe_reports",
   {

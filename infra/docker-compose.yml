@@ -13,8 +13,10 @@ services:
       DATABASE_URL: postgres://snapcook:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/snapcook
       CORS_ORIGINS: ${CORS_ORIGINS:-}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      IMAGE_DIR: /data/images
     volumes:
       - ${DATA_DIR:-../data}/snaps:/data/snaps
+      - ${DATA_DIR:-../data}/images:/data/images
     depends_on:
       postgres:
         condition: service_healthy

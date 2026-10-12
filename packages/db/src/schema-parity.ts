@@ -32,6 +32,7 @@ export const parity: {
   recipeIngredients: Same<Row<"recipeIngredients">, S.RecipeIngredient>;
   deviceProfiles: Same<Row<"deviceProfiles">, S.DeviceProfile>;
   recipeDeviceVariants: Same<Row<"recipeDeviceVariants">, S.RecipeDeviceVariant>;
+  recipeImages: Same<Row<"recipeImages">, S.RecipeImage>;
   recipeReports: Same<Row<"recipeReports">, S.RecipeReport>;
   dishCandidates: Same<Row<"dishCandidates">, S.DishCandidate>;
   dishStageOutputs: Same<Row<"dishStageOutputs">, S.DishStageOutput>;
@@ -58,6 +59,7 @@ export const parity: {
   recipeIngredients: true,
   deviceProfiles: true,
   recipeDeviceVariants: true,
+  recipeImages: true,
   recipeReports: true,
   dishCandidates: true,
   dishStageOutputs: true,

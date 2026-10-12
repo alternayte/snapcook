@@ -148,6 +148,19 @@ export const DeviceProfile = z.object({
 });
 export type DeviceProfile = z.infer<typeof DeviceProfile>;
 
+/** The generated picture of a recipe version. One per version, made once. */
+export const RecipeImage = z.object({
+  recipe_version_id: Id,
+  /** File name in the image directory. Null when no image passed the check. */
+  file: z.string().min(1).nullable(),
+  model: z.string().min(1),
+  prompt: z.string().min(1),
+  /** What the check found wrong, when no image passed. */
+  findings: z.array(z.string().min(1)),
+  created_at: z.date(),
+});
+export type RecipeImage = z.infer<typeof RecipeImage>;
+
 export const RecipeDeviceVariant = z.object({
   recipe_version_id: Id,
   device_profile_id: DeviceProfileId,

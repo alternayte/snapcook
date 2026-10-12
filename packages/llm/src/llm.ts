@@ -1,5 +1,5 @@
 import { EMBEDDING_DIMENSIONS, type LlmCallRecord } from "@snapcook/schema";
-import { type EmbeddingModel, embedMany } from "ai";
+import { type EmbeddingModel, embedMany, generateText, type LanguageModel } from "ai";
 import type { z } from "zod";
 import type { StructuredBackend, StructuredInput } from "./backends";
 
@@ -16,6 +16,8 @@ export type LlmModels = {
   /** Writes corpus content offline. */
   write: StructuredBackend;
   embed: Exclude<EmbeddingModel, string>;
+  /** Draws pictures. Absent where no image model is configured. */
+  image?: Exclude<LanguageModel, string>;
 };
 
 export type LlmDeps = {
@@ -35,6 +37,8 @@ type Measured<T> = { value: T; prompt_tokens: number; completion_tokens: number;
 const openRouterCost = (metadata: unknown) =>
   (metadata as { openrouter?: { usage?: { cost?: unknown } } } | undefined)?.openrouter?.usage
     ?.cost;
+
+const IMAGE_TIMEOUT_MS = 5 * 60 * 1000;
 
 export function createLlm({ models, record }: LlmDeps) {
   async function logged<T>(
@@ -114,6 +118,23 @@ export function createLlm({ models, record }: LlmDeps) {
     ) {
       const { role = "adapt", ...context } = ctx;
       return generate(models[role], schema, context, prompt);
+    },
+
+    /** Draws one picture from a prompt. */
+    image(prompt: string, ctx: CallContext) {
+      const model = models.image;
+      if (!model) throw new Error("no image model is configured");
+      return logged(model.modelId, ctx, async () => {
+        const result = await generateText({ model, prompt, timeout: IMAGE_TIMEOUT_MS });
+        const file = result.files.find((f) => f.mediaType.startsWith("image/"));
+        if (!file) throw new Error(`${model.modelId} returned no image`);
+        return {
+          value: { data: file.uint8Array, mediaType: file.mediaType },
+          prompt_tokens: result.usage.inputTokens ?? 0,
+          completion_tokens: result.usage.outputTokens ?? 0,
+          cost: openRouterCost(result.providerMetadata),
+        };
+      });
     },
 
     /** Embeds each text as a vector of EMBEDDING_DIMENSIONS numbers, in input order. */

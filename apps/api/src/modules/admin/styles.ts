@@ -63,6 +63,7 @@ button {
 button:hover { background: var(--ink); color: var(--paper); }
 button.mark { border-color: var(--mark); }
 button.mark:hover { background: var(--mark); color: var(--paper); }
+img.dish { display: block; width: 100%; margin: calc(var(--unit) * 2) 0; border: 1px solid var(--rule); }
 @media (max-width: 40rem) {
   body { padding: calc(var(--unit) * 2); }
   th.wide, td.wide { display: none; }

@@ -13,6 +13,8 @@ export const LlmEnv = z.object({
   /** An OpenRouter model id, or `claude-code/<model>` for the local Claude Code login. */
   MODEL_WRITE: z.string().min(1),
   MODEL_EMBED: z.string().min(1),
+  /** Needed only by the tool that draws recipe pictures. */
+  MODEL_IMAGE: z.string().min(1).optional(),
 });
 export type LlmEnv = z.infer<typeof LlmEnv>;
 
@@ -35,6 +37,12 @@ export function createOpenRouterLlm(
       review: chat(config.MODEL_REVIEW),
       write,
       embed: openrouter.textEmbeddingModel(config.MODEL_EMBED),
+      image: config.MODEL_IMAGE
+        ? openrouter.chat(config.MODEL_IMAGE, {
+            usage: { include: true },
+            extraBody: { modalities: ["image", "text"], image_config: { aspect_ratio: "4:3" } },
+          })
+        : undefined,
     },
   });
 }

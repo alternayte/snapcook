@@ -2,7 +2,14 @@ import { type Db, schema } from "@snapcook/db";
 import type { RecipeStatus } from "@snapcook/schema";
 import { asc, eq } from "drizzle-orm";
 
-const { ingredients, recipeDeviceVariants, recipeIngredients, recipes, recipeVersions } = schema;
+const {
+  ingredients,
+  recipeDeviceVariants,
+  recipeImages,
+  recipeIngredients,
+  recipes,
+  recipeVersions,
+} = schema;
 
 /** Every recipe with its current version, for the list. */
 export function listRecipes(db: Db, status?: RecipeStatus) {
@@ -43,7 +50,11 @@ export async function getRecipe(db: Db, slug: string) {
     .where(eq(recipeDeviceVariants.recipe_version_id, row.version.id));
   // Allergens are derived from the ingredients, never stored on the recipe.
   const allergens = [...new Set(lines.flatMap((l) => l.allergens))].sort();
-  return { ...row, lines, variant, allergens };
+  const [image] = await db
+    .select()
+    .from(recipeImages)
+    .where(eq(recipeImages.recipe_version_id, row.version.id));
+  return { ...row, lines, variant, allergens, image };
 }
 
 export async function setStatus(db: Db, slug: string, status: RecipeStatus) {

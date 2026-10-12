@@ -1,11 +1,12 @@
 #!/usr/bin/env bun
 import { grid } from "./grid/stage";
+import { image } from "./image/stage";
 import { redraft, stage } from "./pipeline/stage";
 import { smoke } from "./smoke";
 
 type Command = (args: string[]) => Promise<void>;
 
-const commands: Record<string, Command> = { grid, redraft, smoke, stage };
+const commands: Record<string, Command> = { grid, image, redraft, smoke, stage };
 
 const [name, ...args] = process.argv.slice(2);
 const command = name ? commands[name] : undefined;

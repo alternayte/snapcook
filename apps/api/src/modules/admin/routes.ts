@@ -92,12 +92,14 @@ export function createAdmin({ db, password }: { db: Db; password: string }) {
   app.get("/recipes/:slug", async (c) => {
     const found = await getRecipe(db, c.req.param("slug"));
     if (!found) return c.notFound();
-    const { recipe, version, lines, variant, allergens } = found;
+    const { recipe, version, lines, variant, allergens, image } = found;
     return c.html(
       page(
         version.title,
         html`<p class="meta"><a href="/admin/recipes">← Recipes</a></p>
           <h1>${version.title}</h1>
+          ${image?.file ? html`<img class="dish" src="/api/v1/images/${image.file}" alt="" />` : ""}
+          ${image && !image.file ? html`<p class="meta">No picture passed the check: ${image.findings.join("; ")}</p>` : ""}
           <p class="meta">
             ${label(version.cuisine)} · ${label(version.primary_protein)} · ${label(version.technique)} · ${version.time_total_min} min total,
             ${version.time_active_min} active · serves ${version.base_servings} · difficulty ${version.difficulty} · version ${version.version}
