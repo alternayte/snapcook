@@ -5,6 +5,7 @@ import { useState } from "react";
 import { View } from "react-native";
 import { pictureUrl } from "@/components/cook/result-card";
 import { StepCard } from "@/components/recipe/step-card";
+import { AddToList } from "@/components/scrap/add-to-list";
 import { Card, Label, Page } from "@/components/scrap/paper";
 import { Failed, Loading } from "@/components/scrap/status";
 import { Sticker } from "@/components/scrap/sticker";
@@ -13,6 +14,7 @@ import { Chip } from "@/components/ui/chip";
 import { Text } from "@/components/ui/text";
 import { useStartCook } from "@/lib/cook";
 import { amount } from "@/lib/format";
+import { useSaved, useToggleSaved } from "@/lib/list";
 import { useAdaptation, useMe, useRecipe } from "@/lib/queries";
 import { useT } from "@/lib/use-t";
 import { cn } from "@/lib/utils";
@@ -42,6 +44,9 @@ function Recipe({
   const [controls, setControls] = useState<Partial<AdaptationControls>>({});
   const adaptation = useAdaptation(householdId, recipe.recipe_version_id, controls);
   const start = useStartCook();
+  const saved = useSaved(householdId);
+  const toggleSaved = useToggleSaved(householdId);
+  const isSaved = saved.data?.some((r) => r.recipe_id === recipe.recipe_id) ?? false;
   const fitted = adaptation.data;
   const set = (patch: Partial<AdaptationControls>) =>
     setControls((current) => ({ ...current, ...patch }));
@@ -93,6 +98,11 @@ function Recipe({
         </Text>
         <Text>{recipe.description}</Text>
       </View>
+      <Chip
+        label={isSaved ? t("saved.saved") : t("saved.save")}
+        selected={isSaved}
+        onPress={() => toggleSaved.mutate({ recipeId: recipe.recipe_id, save: !isSaved })}
+      />
 
       {adaptation.isFetching ? (
         <View className="flex-row items-center gap-3">
@@ -199,6 +209,20 @@ function Recipe({
                   </Text>
                 ) : null}
               </View>
+              {line.status === "missing" ? (
+                <AddToList
+                  householdId={householdId}
+                  items={[
+                    {
+                      ingredient_id: line.ingredient_id,
+                      display_name: line.name,
+                      quantity: line.quantity,
+                      unit: line.unit,
+                      recipe_id: recipe.recipe_id,
+                    },
+                  ]}
+                />
+              ) : null}
               {options.length > 0 ? (
                 <View className="flex-row flex-wrap items-center gap-2">
                   <Text variant="small">{t("recipe.swap")}</Text>

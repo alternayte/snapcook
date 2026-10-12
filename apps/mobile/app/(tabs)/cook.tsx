@@ -8,6 +8,7 @@ import { Link } from "expo-router";
 import { useState } from "react";
 import { Pressable, View } from "react-native";
 import { ResultCard } from "@/components/cook/result-card";
+import { AddToList } from "@/components/scrap/add-to-list";
 import { Card, Label, Page } from "@/components/scrap/paper";
 import { Loading } from "@/components/scrap/status";
 import { Sticker } from "@/components/scrap/sticker";
@@ -242,19 +243,39 @@ function Cook({ householdId, profile }: { householdId: string; profile: Househol
             <Text variant="label">{t("cook.closest")}</Text>
           </Label>
           {pages[0].closest.map((miss) => (
-            <Link key={miss.recipe_version_id} href={`/recipe/${miss.recipe_id}`} asChild>
-              <Pressable className="gap-0.5 border-b border-b-hairline border-ink/30 py-2">
-                <Text variant="strong">{miss.title}</Text>
-                <Text variant="small">
-                  {t("cook.closest.needs", {
-                    items: sentence(miss.missing_core.map((id) => names[id] ?? "")),
-                  })}
-                </Text>
-              </Pressable>
-            </Link>
+            <View
+              key={miss.recipe_version_id}
+              className="gap-1.5 border-b border-b-hairline border-ink/30 py-2"
+            >
+              <Link href={`/recipe/${miss.recipe_id}`} asChild>
+                <Pressable className="gap-0.5">
+                  <Text variant="strong">{miss.title}</Text>
+                  <Text variant="small">
+                    {t("cook.closest.needs", {
+                      items: sentence(miss.missing_core.map((id) => names[id] ?? "")),
+                    })}
+                  </Text>
+                </Pressable>
+              </Link>
+              <AddToList
+                householdId={householdId}
+                items={miss.missing_core.map((id) => ({
+                  ingredient_id: id,
+                  display_name: names[id] ?? "",
+                  quantity: null,
+                  unit: null,
+                  recipe_id: miss.recipe_id,
+                }))}
+              />
+            </View>
           ))}
         </Card>
       ) : null}
+      <Link href="/saved" asChild>
+        <Button variant="quiet">
+          <Text>{t("saved.link")}</Text>
+        </Button>
+      </Link>
       <Link href="/cooked" asChild>
         <Button variant="quiet">
           <Text>{t("cooked.link")}</Text>

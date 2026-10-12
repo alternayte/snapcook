@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import { View } from "react-native";
+import { AddToList } from "@/components/scrap/add-to-list";
 import { Card, Label, Page } from "@/components/scrap/paper";
 import { Sticker } from "@/components/scrap/sticker";
 import { Button } from "@/components/ui/button";
@@ -68,6 +69,18 @@ export function Finish({ cook, householdId }: { cook: CookView; householdId: str
                 items: sentence(done.used_up.map((item) => item.display_name)),
               })}
             </Text>
+          ) : null}
+          {done.used_up.length > 0 ? (
+            <AddToList
+              householdId={householdId}
+              variant="paper"
+              items={done.used_up.map((item) => ({
+                ingredient_id: item.ingredient_id,
+                display_name: item.display_name,
+                quantity: null,
+                unit: null,
+              }))}
+            />
           ) : null}
           <Button
             className="self-center"
