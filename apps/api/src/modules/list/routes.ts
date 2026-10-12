@@ -13,7 +13,9 @@ import {
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
-import { fail, type HouseholdEnv, unchanged } from "../../http";
+import { allowanceExceeded, fail, type HouseholdEnv, unchanged } from "../../http";
+import { PLANS } from "../billing/plans";
+import { savedCount } from "../billing/usage";
 import { mergeInto, sumAmounts } from "../pantry/merge";
 import { parseEntry } from "../pantry/parse";
 import { aisleFor } from "./aisle";
@@ -241,6 +243,18 @@ export function listRoutes(db: Db, matcher: IngredientMatcher) {
         .from(recipes)
         .where(and(eq(recipes.id, recipeId), inArray(recipes.status, [...SERVABLE])));
       if (!recipe) return fail(c, 404, "not_found", "No such recipe.");
+      const limit = PLANS[c.var.household.plan].saved;
+      const [kept] = await db
+        .select({ id: savedRecipes.recipe_id })
+        .from(savedRecipes)
+        .where(
+          and(
+            eq(savedRecipes.household_id, c.var.household.id),
+            eq(savedRecipes.recipe_id, recipeId),
+          ),
+        );
+      const used = await savedCount(db, c.var.household.id);
+      if (!kept && limit !== null && used >= limit) return allowanceExceeded(c, { limit, used });
       await db
         .insert(savedRecipes)
         .values({ household_id: c.var.household.id, recipe_id: recipeId })

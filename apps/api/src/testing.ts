@@ -9,7 +9,12 @@ const ORIGIN = "http://localhost";
 /** The server as tests use it: real sign-in on the given database, and a model that is not called. */
 export function createTestServer(
   db: Db,
-  over: { llm?: Llm; ownerEmails?: string[]; snaps?: AppDeps["snaps"] } = {},
+  over: {
+    llm?: Llm;
+    ownerEmails?: string[];
+    snaps?: AppDeps["snaps"];
+    billingWebhookSecret?: string;
+  } = {},
 ) {
   const auth = createAuth(db, {
     secret: "test-secret-test-secret-test-secret",
@@ -26,6 +31,7 @@ export function createTestServer(
     corsOrigins: [],
     ownerEmails: over.ownerEmails ?? [],
     adaptModel: "test-model",
+    billingWebhookSecret: over.billingWebhookSecret,
     snaps: over.snaps ?? {
       snapDir: "/nonexistent",
       enqueueDetect: () => Promise.reject(new Error("no job runner in this test")),

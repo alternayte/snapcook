@@ -183,6 +183,8 @@ export type AdaptRequest = z.infer<typeof AdaptRequest>;
 export const AdaptResponse = z.object({
   adaptation_id: Id,
   controls: AdaptationControls,
+  /** True when the household's plan does not let it change the controls. */
+  controls_locked: z.boolean(),
   recipe: AdaptedRecipe,
   /** For each ingredient that is not on hand, the pantry items that could stand in for it. */
   swap_options: z.record(Id, z.array(z.object({ pantry_item_id: Id, name: z.string() }))),

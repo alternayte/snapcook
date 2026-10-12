@@ -2,7 +2,8 @@ import { zValidator } from "@hono/zod-validator";
 import { AdaptRequest, Id } from "@snapcook/schema";
 import { Hono } from "hono";
 import { z } from "zod";
-import { fail, type HouseholdEnv } from "../../http";
+import { allowanceExceeded, fail, type HouseholdEnv } from "../../http";
+import { AllowanceUsedUp } from "../billing/usage";
 import { profileOf } from "../household/service";
 import { AdaptationRefused, type AdaptDeps, adapt, recipeView } from "./service";
 
@@ -30,6 +31,7 @@ export function recipeRoutes(deps: AdaptDeps) {
           const answer = await adapt(deps, c.var.household, profile, c.req.valid("json"));
           return answer ? c.json(answer) : fail(c, 404, "not_found", "No such recipe.");
         } catch (error) {
+          if (error instanceof AllowanceUsedUp) return allowanceExceeded(c, error.refusal);
           if (error instanceof AdaptationRefused) {
             return fail(c, 422, "adaptation_refused", "This recipe could not be adapted safely.", {
               problems: error.problems,

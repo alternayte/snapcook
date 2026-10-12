@@ -8,6 +8,7 @@ import { cors } from "hono/cors";
 import { createMiddleware } from "hono/factory";
 import { fail, type HouseholdEnv, type SessionEnv } from "./http";
 import type { Auth } from "./modules/auth/auth";
+import { billingWebhook } from "./modules/billing/webhook";
 import { cookRoutes } from "./modules/cook/routes";
 import { householdRoutes, sessionRoutes } from "./modules/household/routes";
 import { membership } from "./modules/household/service";
@@ -31,6 +32,8 @@ export type AppDeps = {
   /** A household created by one of these addresses gets the owner plan. Lower case. */
   ownerEmails: string[];
   snaps: Omit<SnapDeps, "db">;
+  /** The secret the store service sends with each subscription event. Unset turns the route off. */
+  billingWebhookSecret?: string;
   /** The id of the model that adapts recipes, stored with each adaptation. */
   adaptModel: string;
 };
@@ -100,6 +103,7 @@ export function createApp(deps: AppDeps) {
         "cache-control": "public, max-age=31536000, immutable",
       });
     })
+    .route("/", billingWebhook(db, deps.billingWebhookSecret))
     .route("/", signedIn)
     .route("/", inHousehold);
 }

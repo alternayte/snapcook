@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { Id, Meter, SubscriptionStatus } from "./enums";
+import { Id, Meter, Plan, SubscriptionStatus } from "./enums";
 
 /** A calendar month `YYYY-MM` or a calendar day `YYYY-MM-DD`. */
 export const UsagePeriod = z.string().regex(/^\d{4}-\d{2}(-\d{2})?$/);
@@ -49,3 +49,20 @@ export const HouseholdCostDaily = z.object({
   calls: z.number().int().nonnegative(),
 });
 export type HouseholdCostDaily = z.infer<typeof HouseholdCostDaily>;
+
+const Allowance = z.object({
+  /** Null means no limit. */
+  limit: z.number().int().nullable(),
+  used: z.number().int().nonnegative(),
+});
+
+/** What a household may do on its plan, and how much of each allowance it has used. */
+export const Entitlements = z.object({
+  plan: Plan,
+  snaps: Allowance.extend({ resets_at: z.date() }),
+  suggestions: Allowance.extend({ resets_at: z.date() }),
+  members: Allowance.extend({ limit: z.number().int() }),
+  saved: Allowance,
+  adaptation_controls: z.boolean(),
+});
+export type Entitlements = z.infer<typeof Entitlements>;

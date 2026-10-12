@@ -2,8 +2,9 @@ import { randomInt } from "node:crypto";
 import { type Db, schema } from "@snapcook/db";
 import { INVITE_CODE_LENGTH, type InviteView, type MemberView } from "@snapcook/schema";
 import { and, asc, eq, gt, isNull } from "drizzle-orm";
+import { PLANS } from "../billing/plans";
 
-const { householdInvites, householdMembers, users } = schema;
+const { householdInvites, householdMembers, households, users } = schema;
 
 const INVITE_DAYS = 7;
 // Letters and digits that are hard to mix up when read aloud or typed: no 0/O, 1/I/L.
@@ -32,7 +33,7 @@ export async function createInvite(
   throw new Error("no free invite code");
 }
 
-export type JoinOutcome = "joined" | "already_in_household" | "bad_code";
+export type JoinOutcome = "joined" | "already_in_household" | "bad_code" | "household_full";
 
 /** Adds the user to the household the code belongs to. A code works once and until it expires. */
 export async function joinHousehold(db: Db, userId: string, code: string, now = new Date()) {
@@ -54,6 +55,17 @@ export async function joinHousehold(db: Db, userId: string, code: string, now = 
       )
       .for("update");
     if (!invite) return "bad_code";
+    // The household row is locked, so two people joining at once cannot both take the last place.
+    const [household] = await tx
+      .select({ plan: households.plan })
+      .from(households)
+      .where(eq(households.id, invite.household_id))
+      .for("update");
+    const count = await tx.$count(
+      householdMembers,
+      eq(householdMembers.household_id, invite.household_id),
+    );
+    if (!household || count >= PLANS[household.plan].members) return "household_full";
     await tx
       .insert(householdMembers)
       .values({ household_id: invite.household_id, user_id: userId, role: "member" });

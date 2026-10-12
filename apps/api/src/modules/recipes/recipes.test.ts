@@ -217,6 +217,14 @@ test("an allergen with a stand-in on hand is replaced; with none, the household 
   ]);
 });
 
+test("a household on the free plan gets its defaults, whatever controls it sends", async () => {
+  const user = await signUpWithHousehold("locked@example.com");
+  answers = [withCream];
+  const out = (await (await adaptFor(user, { servings: 8, lazier: true })).json()) as AdaptResponse;
+  expect(out.controls_locked).toBe(true);
+  expect(out.controls).toMatchObject({ servings: 2.5, lazier: false });
+});
+
 test("a swap that names another household's pantry item is ignored", async () => {
   const a = await signUpWithHousehold("swap-a@example.com");
   const b = await signUpWithHousehold("swap-b@example.com");

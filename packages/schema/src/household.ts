@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { Entitlements } from "./billing";
 import { Allergen, DietStyle, Effort, Id, MemberRole, Plan } from "./enums";
 
 export const User = z.object({
@@ -82,6 +83,7 @@ export const Me = z.object({
   household: Household.nullable(),
   role: MemberRole.nullable(),
   profile: HouseholdProfile.nullable(),
+  entitlements: Entitlements.nullable(),
 });
 export type Me = z.infer<typeof Me>;
 

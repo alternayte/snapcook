@@ -11,7 +11,6 @@ import type {
   SuggestResponse,
 } from "@snapcook/schema";
 import { and, eq, inArray, isNotNull } from "drizzle-orm";
-import { meter } from "../snaps/service";
 import { type Corpus, type CorpusRecipe, pickVaried, rank, type Scored } from "./rank";
 
 const {
@@ -269,7 +268,6 @@ export async function suggest(
       .values({ household_id: household.id, request, pantry_snapshot: pantry, results: stored })
       .returning({ id: suggestionRuns.id });
     run_id = run?.id;
-    await meter(db, household.id, "suggestions", 1);
   }
   if (!run_id) throw new Error("suggestion run insert returned nothing");
 

@@ -9,7 +9,8 @@ import type {
   RecipeView,
 } from "@snapcook/schema";
 import { and, asc, eq, inArray, isNotNull } from "drizzle-orm";
-import { meter } from "../snaps/service";
+import { PLANS } from "../billing/plans";
+import { AllowanceUsedUp, consume } from "../billing/usage";
 import {
   ADAPT_SYSTEM,
   AdaptedDraft,
@@ -167,7 +168,9 @@ export async function adapt(
     substitutes,
   };
   const kitchen: KitchenFacts = { profile, pantry };
-  const asked = request.controls;
+  // A plan without adaptation controls gets the household's defaults, whatever was asked.
+  const controls_locked = !PLANS[household.plan].adaptationControls;
+  const asked = controls_locked ? {} : request.controls;
   const controls: AdaptationControls = {
     servings: asked.servings ?? profile.default_servings,
     device_profile_id:
@@ -210,6 +213,7 @@ export async function adapt(
   const respond = (id: string, output: AdaptResponse["recipe"]): AdaptResponse => ({
     adaptation_id: id,
     controls,
+    controls_locked,
     recipe: output,
     swap_options,
   });
@@ -253,6 +257,10 @@ export async function adapt(
     return store(assemble(sourceDraft(planned, refused), recipe, kitchen, controls), "none", 0);
   }
 
+  // Only a model run is counted: a stored answer and a refusal cost nothing.
+  const refusal = await consume(db, household, "adaptations");
+  if (refusal) throw new AllowanceUsedUp(refusal);
+
   const [device] = planned.withDevice
     ? await db.select().from(deviceProfiles).where(eq(deviceProfiles.id, "mc_smart"))
     : [];
@@ -282,7 +290,6 @@ export async function adapt(
     });
     problems = draftProblems(draft, planned, device?.capabilities ?? null);
     if (problems.length === 0) {
-      await meter(db, household.id, "adaptations", 1);
       return store(assemble(draft, recipe, kitchen, controls), model, cost);
     }
     previous = draft;

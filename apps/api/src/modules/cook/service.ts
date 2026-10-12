@@ -4,12 +4,13 @@ import type {
   CookView,
   FinishCookInput,
   FinishCookResponse,
+  Household,
   HouseholdProfile,
   RescueResponse,
 } from "@snapcook/schema";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
-import { meter } from "../snaps/service";
+import { AllowanceUsedUp, consume } from "../billing/usage";
 import { drawDown } from "./drawdown";
 
 const {
@@ -257,14 +258,17 @@ const RESCUE_SYSTEM = [
 export async function rescue(
   db: Db,
   llm: Llm,
-  householdId: string,
+  household: Pick<Household, "id" | "plan">,
   id: string,
   input: { step_index: number; text: string },
 ): Promise<RescueResponse | undefined> {
+  const householdId = household.id;
   const [row] = await sessionWith(db).where(
     and(eq(cookSessions.household_id, householdId), eq(cookSessions.id, id)),
   );
   if (!row) return undefined;
+  const refusal = await consume(db, household, "rescues");
+  if (refusal) throw new AllowanceUsedUp(refusal);
   const ctx = { endpoint: "cooks.rescue", household_id: householdId };
   const symptoms = row.failure_modes.map((mode) => mode.symptom);
   const [question, ...known] = await llm.embed([input.text, ...symptoms], ctx);
@@ -305,6 +309,5 @@ export async function rescue(
     kind: "rescue",
     payload: { cook_session_id: id, ...input, ...answer },
   });
-  await meter(db, householdId, "rescues", 1);
   return answer;
 }

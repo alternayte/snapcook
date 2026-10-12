@@ -5,7 +5,8 @@ import { and, eq, inArray } from "drizzle-orm";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { z } from "zod";
-import { fail, type HouseholdEnv } from "../../http";
+import { allowanceExceeded, fail, type HouseholdEnv } from "../../http";
+import { consume } from "../billing/usage";
 import { mergeInto } from "../pantry/merge";
 import { imageKind, storeSnap } from "./service";
 
@@ -37,6 +38,8 @@ export function snapRoutes({ db, snapDir, enqueueDetect }: SnapDeps) {
         const data = new Uint8Array(await photo.arrayBuffer());
         const kind = imageKind(data);
         if (!kind) return fail(c, 400, "validation", "The photo must be a JPEG or a PNG.");
+        const refusal = await consume(db, c.var.household, "snaps");
+        if (refusal) return allowanceExceeded(c, refusal);
         const snap_id = await storeSnap(db, snapDir, {
           householdId: c.var.household.id,
           userId: c.var.user.id,

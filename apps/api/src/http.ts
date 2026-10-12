@@ -41,3 +41,11 @@ export function unchanged(c: Context, rev: number) {
   c.header("Cache-Control", "private, no-cache");
   return c.req.header("If-None-Match") === tag;
 }
+
+/** The answer when a household has used up an allowance of its plan. */
+export function allowanceExceeded(
+  c: Context,
+  what: { limit: number; used: number; resets_at?: Date },
+) {
+  return fail(c, 429, "allowance_exceeded", "Your plan's allowance is used up.", what);
+}

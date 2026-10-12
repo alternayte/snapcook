@@ -14,6 +14,7 @@ import { eq, inArray, or } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
 import { fail, type HouseholdEnv, type SessionEnv } from "../../http";
+import { entitlements } from "../billing/usage";
 import {
   createHousehold,
   membership,
@@ -30,6 +31,7 @@ async function me(db: Db, user: SessionEnv["Variables"]["user"]): Promise<Me> {
     household: member?.household ?? null,
     role: member?.role ?? null,
     profile: member ? await profileOf(db, member.household.id) : null,
+    entitlements: member ? await entitlements(db, member.household) : null,
   };
 }
 
@@ -62,6 +64,11 @@ export function sessionRoutes(db: Db, ownerEmails: string[]) {
         if (outcome === "already_in_household") {
           return fail(c, 403, "forbidden", "You already belong to a household.", {
             reason: "already_in_household",
+          });
+        }
+        if (outcome === "household_full") {
+          return fail(c, 403, "forbidden", "That household has no room on its plan.", {
+            reason: "household_full",
           });
         }
         if (outcome === "bad_code") {

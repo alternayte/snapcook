@@ -10,7 +10,8 @@ import {
 } from "@snapcook/schema";
 import { Hono } from "hono";
 import { z } from "zod";
-import { fail, type HouseholdEnv } from "../../http";
+import { allowanceExceeded, fail, type HouseholdEnv } from "../../http";
+import { AllowanceUsedUp } from "../billing/usage";
 import { profileOf } from "../household/service";
 import { cookHistory, cookView, finishCook, rescue, setStep, startCook } from "./service";
 
@@ -65,12 +66,13 @@ export function cookRoutes(db: Db, llm: Llm) {
         const answer = await rescue(
           db,
           llm,
-          c.var.household.id,
+          c.var.household,
           c.req.valid("param").id,
           c.req.valid("json"),
         );
         return answer ? c.json(answer) : missing(c);
-      } catch {
+      } catch (error) {
+        if (error instanceof AllowanceUsedUp) return allowanceExceeded(c, error.refusal);
         return fail(c, 502, "upstream_model", "No answer came back. Try again.");
       }
     });

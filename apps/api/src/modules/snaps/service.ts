@@ -3,37 +3,14 @@ import { dirname, join } from "node:path";
 import { type Db, schema } from "@snapcook/db";
 import type { Llm } from "@snapcook/llm";
 import { detect, type IngredientMatcher, toProposals } from "@snapcook/recognition";
-import type { Location, Meter, SnapProposal } from "@snapcook/schema";
-import { and, eq, isNotNull, isNull, lt, sql } from "drizzle-orm";
+import type { Location, SnapProposal } from "@snapcook/schema";
+import { and, eq, isNotNull, isNull, lt } from "drizzle-orm";
+import { release } from "../billing/usage";
 
-const { pantryItems, snaps, usageCounters } = schema;
+const { pantryItems, snaps } = schema;
 
 // A photo is removed this long after upload, so it is always gone within a day.
 const PHOTO_LIFETIME_MS = 23 * 60 * 60 * 1000;
-
-const month = (now: Date) => now.toISOString().slice(0, 7);
-
-/** Adds to, or takes back from, a household's use of a meter in the current month. */
-export async function meter(
-  db: Db,
-  householdId: string,
-  name: Meter,
-  change: 1 | -1,
-  now = new Date(),
-) {
-  await db
-    .insert(usageCounters)
-    .values({
-      household_id: householdId,
-      period: month(now),
-      meter: name,
-      used: Math.max(change, 0),
-    })
-    .onConflictDoUpdate({
-      target: [usageCounters.household_id, usageCounters.period, usageCounters.meter],
-      set: { used: sql`greatest(${usageCounters.used} + ${change}, 0)` },
-    });
-}
 
 const SIGNATURES = [
   { type: "image/jpeg", ext: "jpg", bytes: [0xff, 0xd8, 0xff] },
@@ -44,7 +21,7 @@ const SIGNATURES = [
 export const imageKind = (data: Uint8Array) =>
   SIGNATURES.find((s) => s.bytes.every((byte, i) => data[i] === byte));
 
-/** Stores an uploaded photo and its row. The caller queues detection. */
+/** Stores an uploaded photo and its row. The caller counts the snap first and queues detection after. */
 export async function storeSnap(
   db: Db,
   snapDir: string,
@@ -62,7 +39,6 @@ export async function storeSnap(
     location: input.location,
     storage_path,
   });
-  await meter(db, input.householdId, "snaps", 1);
   return id;
 }
 
@@ -118,8 +94,8 @@ export async function failSnap(db: Db, snapId: string) {
     .update(snaps)
     .set({ status: "failed" })
     .where(and(eq(snaps.id, snapId), eq(snaps.status, "queued")))
-    .returning({ household_id: snaps.household_id });
-  if (snap) await meter(db, snap.household_id, "snaps", -1);
+    .returning({ household_id: snaps.household_id, created_at: snaps.created_at });
+  if (snap) await release(db, snap.household_id, "snaps", snap.created_at);
 }
 
 /** Deletes the files of photos past their lifetime. The rows stay, for counting. */

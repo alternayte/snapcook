@@ -8,7 +8,10 @@ import { joinHousehold } from "./sharing";
 
 const { db, pool } = await createTestDb();
 afterAll(() => pool.end());
-const { server, signUp, signUpWithHousehold } = createTestServer(db);
+// One household is on the owner plan, which has room for more than two people.
+const { server, signUp, signUpWithHousehold } = createTestServer(db, {
+  ownerEmails: ["boss@example.com"],
+});
 const call = (headers: Record<string, string>, method: string, path: string, body?: unknown) =>
   server.request(`/api/v1${path}`, {
     method,
@@ -103,4 +106,18 @@ test("a member of another household cannot remove someone from this one", async 
   expect(
     (await call(outsider, "DELETE", `/household/members/${(await meOf(guest)).user.id}`)).status,
   ).toBe(404);
+});
+
+test("a household on the free plan has room for the owner and one more", async () => {
+  const owner = await signUpWithHousehold("small@example.com");
+  const first = await signUp("first@example.com");
+  const second = await signUp("second@example.com");
+  expect(
+    (await call(first, "POST", "/household/join", { code: (await invite(owner)).code })).status,
+  ).toBe(200);
+  const res = await call(second, "POST", "/household/join", { code: (await invite(owner)).code });
+  expect(res.status).toBe(403);
+  expect(
+    ((await res.json()) as { error: { details: { reason: string } } }).error.details.reason,
+  ).toBe("household_full");
 });
