@@ -33,7 +33,7 @@ export function validateDraft(
   draft: RecipeDraft,
   dish: Pick<DishCandidate, "primary_protein" | "dish_type">,
   index: IngredientIndex,
-  config: Pick<PipelineConfig, "tags" | "bands">,
+  config: Pick<PipelineConfig, "tags" | "bands" | "edible_share">,
 ): Problem[] {
   const problems: Problem[] = [];
   const add = (code: string, message: string) => problems.push({ code, message });
@@ -76,7 +76,7 @@ export function validateDraft(
       if (!band.roles.includes(line.role) || line.quantity === null || line.unit === null) continue;
       const g = toGrams(line.quantity, line.unit, ingredient);
       if (g === null) continue;
-      grams += g;
+      grams += g * (config.edible_share[ingredient.name] ?? 1);
       counted += 1;
     }
     if (counted === 0) continue;

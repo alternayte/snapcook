@@ -21,6 +21,11 @@ export const PipelineConfig = z.object({
       max_g: z.number().positive(),
     }),
   ),
+  /**
+   * The share of an ingredient's weight that is eaten, by canonical name, for ingredients sold
+   * with shell or bone. The bands count only this share.
+   */
+  edible_share: z.record(z.string(), z.number().positive().max(1)),
   research: Prompt,
   write: Prompt,
   device: Prompt,

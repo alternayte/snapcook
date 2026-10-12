@@ -35,6 +35,7 @@ const index = indexIngredients([
 
 const config = {
   tags: ["one-pot"],
+  edible_share: {} as Record<string, number>,
   bands: [
     {
       label: "Meat and fish",
@@ -180,4 +181,11 @@ test("a quantity band applies only to its dish types", () => {
     validateDraft(thin, { ...dish, dish_type }, index, mains).map((p) => p.code);
   expect(codesFor("main")).toContain("quantity_band");
   expect(codesFor("soup")).not.toContain("quantity_band");
+});
+
+test("a quantity band counts only the edible share of an ingredient", () => {
+  const whole = { ...good, ingredients: [{ ...chicken, quantity: 2000 }] };
+  const shares = { ...config, edible_share: { "chicken thigh": 0.4 } };
+  expect(validateDraft(whole, dish, index, config).map((p) => p.code)).toContain("quantity_band");
+  expect(validateDraft(whole, dish, index, shares)).toEqual([]);
 });
