@@ -40,3 +40,12 @@ export type LlmCall = z.infer<typeof LlmCall>;
 /** What one model call reports for the log, before it has an id or a timestamp. */
 export const LlmCallRecord = LlmCall.omit({ id: true, created_at: true });
 export type LlmCallRecord = z.infer<typeof LlmCallRecord>;
+
+/** What one household's model calls cost on one day. */
+export const HouseholdCostDaily = z.object({
+  household_id: Id,
+  day: z.iso.date(),
+  cost_usd: z.number().nonnegative(),
+  calls: z.number().int().nonnegative(),
+});
+export type HouseholdCostDaily = z.infer<typeof HouseholdCostDaily>;

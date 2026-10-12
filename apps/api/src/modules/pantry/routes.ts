@@ -1,28 +1,22 @@
 import { zValidator } from "@hono/zod-validator";
 import { type Db, schema } from "@snapcook/db";
+import type { IngredientMatcher } from "@snapcook/recognition";
 import {
   Id,
   type PantryAddInput,
   PantryAddInput as PantryAddInputSchema,
-  type PantryItem,
   PantryPatch,
-  toGrams,
 } from "@snapcook/schema";
 import { and, asc, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
 import { fail, type HouseholdEnv } from "../../http";
-import type { IngredientMatcher } from "./match";
+import { type Incoming, mergeInto } from "./merge";
 import { parseEntry } from "./parse";
 
 const { ingredients, pantryItems } = schema;
 
 const SEARCH_LIMIT = 12;
-
-type Incoming = Pick<
-  PantryItem,
-  "ingredient_id" | "display_name" | "quantity" | "unit" | "location" | "use_soon" | "expires_on"
->;
 
 /** Turns what the client sent into the fields of an item. Typed text is parsed and matched. */
 async function incoming(input: PantryAddInput, matcher: IngredientMatcher): Promise<Incoming> {
@@ -50,25 +44,6 @@ async function incoming(input: PantryAddInput, matcher: IngredientMatcher): Prom
     quantity: parsed.quantity,
     unit: parsed.unit,
   };
-}
-
-/** The quantity after adding one amount to another. Null means "some": the amounts do not add. */
-async function added(db: Db, existing: PantryItem, extra: Incoming) {
-  if (existing.quantity === null || extra.quantity === null) return { quantity: null, unit: null };
-  if (existing.unit === extra.unit) {
-    return { quantity: existing.quantity + extra.quantity, unit: existing.unit };
-  }
-  if (!existing.ingredient_id || !existing.unit || !extra.unit)
-    return { quantity: null, unit: null };
-  const [ingredient] = await db
-    .select()
-    .from(ingredients)
-    .where(eq(ingredients.id, existing.ingredient_id));
-  if (!ingredient) return { quantity: null, unit: null };
-  const a = toGrams(existing.quantity, existing.unit, ingredient);
-  const b = toGrams(extra.quantity, extra.unit, ingredient);
-  if (a === null || b === null) return { quantity: null, unit: null };
-  return { quantity: Math.round((a + b) * 100) / 100, unit: "g" as const };
 }
 
 export function pantryRoutes(db: Db, matcher: IngredientMatcher) {
@@ -113,23 +88,8 @@ export function pantryRoutes(db: Db, matcher: IngredientMatcher) {
         if (existing && !input.merge) {
           return c.json({ outcome: "merge_needed" as const, existing, incoming: item });
         }
-        if (existing && input.merge !== "separate") {
-          const amount =
-            input.merge === "add"
-              ? await added(db, existing, item)
-              : { quantity: item.quantity, unit: item.unit };
-          const [merged] = await db
-            .update(pantryItems)
-            .set({
-              ...amount,
-              ...(input.merge === "replace"
-                ? { display_name: item.display_name, expires_on: item.expires_on }
-                : {}),
-              use_soon: existing.use_soon || item.use_soon,
-              updated_at: new Date(),
-            })
-            .where(mine(householdId, existing.id))
-            .returning();
+        if (existing && input.merge && input.merge !== "separate") {
+          const merged = await mergeInto(db, householdId, existing, item, input.merge);
           if (!merged) return fail(c, 404, "not_found", "The item is gone.");
           return c.json({ outcome: "merged" as const, item: merged });
         }

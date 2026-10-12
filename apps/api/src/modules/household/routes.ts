@@ -1,12 +1,12 @@
 import { zValidator } from "@hono/zod-validator";
 import { type Db, schema } from "@snapcook/db";
 import type { Llm } from "@snapcook/llm";
+import type { IngredientMatcher } from "@snapcook/recognition";
 import { CreateHouseholdInput, MatchTextInput, type Me, ProfileInput } from "@snapcook/schema";
 import { eq, inArray, or } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
 import { fail, type HouseholdEnv, type SessionEnv } from "../../http";
-import type { IngredientMatcher } from "../pantry/match";
 import {
   createHousehold,
   membership,

@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { nameForms, parseEntry } from "./parse";
+import { parseEntry } from "./parse";
 
 test.each([
   ["2 bell peppers", { name: "bell peppers", quantity: 2, unit: "piece" }],
@@ -19,10 +19,4 @@ test.each([
   ["2 large onions", { name: "large onions", quantity: 2, unit: "piece" }],
 ])("%s", (text, expected) => {
   expect(parseEntry(text)).toEqual(expected as ReturnType<typeof parseEntry>);
-});
-
-test("a plural name is also tried in its singular forms", () => {
-  expect(nameForms("Bell  Peppers")).toContain("bell pepper");
-  expect(nameForms("tomatoes")).toContain("tomato");
-  expect(nameForms("berries")).toContain("berry");
 });

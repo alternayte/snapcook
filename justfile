@@ -23,6 +23,7 @@ dev: test-db
     trap 'kill 0' EXIT
     DATABASE_URL=postgres://postgres:test@127.0.0.1:54330/postgres CORS_ORIGINS=http://localhost:8081 \
       PUBLIC_URL=http://localhost:3000 AUTH_SECRET=dev-only-dev-only-dev-only-dev-only \
+      SNAP_DIR="${TMPDIR:-/tmp}/snapcook-dev-snaps" \
       bun --watch apps/api/src/index.ts &
     cd apps/mobile && bunx expo start --web --port 8081
 

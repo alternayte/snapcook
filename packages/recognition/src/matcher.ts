@@ -1,12 +1,20 @@
 import { type Db, foldName, schema } from "@snapcook/db";
-import { nameForms } from "./parse";
+import type { CallContext, Llm } from "@snapcook/llm";
+import { sql } from "drizzle-orm";
+import { nameForms } from "./names";
 
 export type Canonical = { id: string; name: string };
 
 // Ingredients change only when the seed is loaded again, so one read serves many requests.
 const TTL_MS = 10 * 60 * 1000;
 
-/** Finds the canonical ingredient for a name a person typed, by name, alias and singular form. */
+/** At or above this cosine, a name with no exact match is taken to mean its nearest ingredient. */
+export const NEAREST_MIN_SIMILARITY = 0.82;
+
+/** The text an ingredient is embedded as. A name is compared with this. */
+export const ingredientText = (name: string, aliases: string[]) => [name, ...aliases].join(", ");
+
+/** Finds the canonical ingredient for a name, by name, alias and singular form, then by meaning. */
 export function createIngredientMatcher(db: Db) {
   let loaded: { at: number; index: Promise<Map<string, Canonical>> } | undefined;
 
@@ -43,6 +51,27 @@ export function createIngredientMatcher(db: Db) {
       }
       return undefined;
     },
+
+    /** The ingredient whose embedded text is closest to each name, when it is close enough. */
+    async nearest(names: string[], llm: Llm, ctx: CallContext): Promise<(Canonical | undefined)[]> {
+      if (names.length === 0) return [];
+      const vectors = await llm.embed(names, ctx);
+      return Promise.all(
+        vectors.map(async (vector) => {
+          const literal = JSON.stringify(vector);
+          const found = await db.execute<{ id: string; name: string; similarity: number }>(
+            sql`select id, name, 1 - (embedding <=> ${literal}::vector) as similarity
+                from ingredients where embedding is not null
+                order by embedding <=> ${literal}::vector limit 1`,
+          );
+          const hit = found.rows[0];
+          return hit && Number(hit.similarity) >= NEAREST_MIN_SIMILARITY
+            ? { id: hit.id, name: hit.name }
+            : undefined;
+        }),
+      );
+    },
+
     /** Every canonical name, once each. */
     async names() {
       return [...new Set([...(await index()).values()].map((c) => c.name))];

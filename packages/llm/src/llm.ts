@@ -7,6 +7,8 @@ export type CallContext = {
   /** The API route or CLI stage that made the call. */
   endpoint: string;
   household_id: string | null;
+  /** Receives the cost of each successful call made under this context, in US dollars. */
+  onCost?: (usd: number) => void;
 };
 
 export type LlmModels = {
@@ -47,7 +49,7 @@ export function createLlm({ models, record }: LlmDeps) {
     call: () => Promise<Measured<T>>,
   ): Promise<T> {
     const started = Date.now();
-    const base = { ...ctx, model };
+    const base = { endpoint: ctx.endpoint, household_id: ctx.household_id, model };
     const latency = () => Math.round(Date.now() - started);
     let result: Measured<T>;
     try {
@@ -72,6 +74,7 @@ export function createLlm({ models, record }: LlmDeps) {
       latency_ms: latency(),
       ok: true,
     });
+    ctx.onCost?.(result.cost);
     return result.value;
   }
 

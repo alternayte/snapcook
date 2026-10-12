@@ -9,11 +9,13 @@ COPY apps/mobile/package.json apps/mobile/
 COPY packages/api-client/package.json packages/api-client/
 COPY packages/db/package.json packages/db/
 COPY packages/llm/package.json packages/llm/
+COPY packages/recognition/package.json packages/recognition/
 COPY packages/schema/package.json packages/schema/
 RUN bun install --frozen-lockfile --production --filter @snapcook/api
 
 COPY packages/db packages/db
 COPY packages/llm packages/llm
+COPY packages/recognition packages/recognition
 COPY packages/schema packages/schema
 COPY apps/api apps/api
 

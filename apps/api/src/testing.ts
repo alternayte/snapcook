@@ -1,12 +1,16 @@
 import type { Db } from "@snapcook/db";
 import type { Llm } from "@snapcook/llm";
+import type { AppDeps } from "./app";
 import { createAuth } from "./modules/auth/auth";
 import { createServer } from "./server";
 
 const ORIGIN = "http://localhost";
 
 /** The server as tests use it: real sign-in on the given database, and a model that is not called. */
-export function createTestServer(db: Db, over: { llm?: Llm; ownerEmails?: string[] } = {}) {
+export function createTestServer(
+  db: Db,
+  over: { llm?: Llm; ownerEmails?: string[]; snaps?: AppDeps["snaps"] } = {},
+) {
   const auth = createAuth(db, {
     secret: "test-secret-test-secret-test-secret",
     baseUrl: ORIGIN,
@@ -21,6 +25,10 @@ export function createTestServer(db: Db, over: { llm?: Llm; ownerEmails?: string
     llm,
     corsOrigins: [],
     ownerEmails: over.ownerEmails ?? [],
+    snaps: over.snaps ?? {
+      snapDir: "/nonexistent",
+      enqueueDetect: () => Promise.reject(new Error("no job runner in this test")),
+    },
   });
 
   /** Signs a new user up and returns the headers that make later requests theirs. */

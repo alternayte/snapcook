@@ -28,6 +28,7 @@ services:
       MODEL_WRITE: ${MODEL_WRITE:?set MODEL_WRITE}
       MODEL_EMBED: ${MODEL_EMBED:?set MODEL_EMBED}
       IMAGE_DIR: /data/images
+      SNAP_DIR: /data/snaps
     volumes:
       - ${DATA_DIR:-../data}/snaps:/data/snaps
       - ${DATA_DIR:-../data}/images:/data/images

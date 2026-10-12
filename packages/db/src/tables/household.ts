@@ -284,6 +284,19 @@ export const usageCounters = pgTable(
   ],
 );
 
+export const householdCostDaily = pgTable(
+  "household_cost_daily",
+  {
+    household_id: uuid()
+      .notNull()
+      .references(() => households.id, { onDelete: "cascade" }),
+    day: date({ mode: "string" }).notNull(),
+    cost_usd: usd().notNull(),
+    calls: integer().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.household_id, t.day] })],
+);
+
 export const subscriptions = pgTable(
   "subscriptions",
   {

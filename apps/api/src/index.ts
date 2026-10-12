@@ -1,5 +1,7 @@
 import { createDb, migrate, recordLlmCall } from "@snapcook/db";
 import { createOpenRouterLlm } from "@snapcook/llm";
+import { createIngredientMatcher } from "@snapcook/recognition";
+import { startJobs } from "./jobs";
 import { createAuth } from "./modules/auth/auth";
 import { createServer } from "./server";
 
@@ -21,9 +23,16 @@ const { APPLE_CLIENT_ID, APPLE_CLIENT_SECRET, APPLE_BUNDLE_ID, GOOGLE_CLIENT_ID 
 const { GOOGLE_CLIENT_SECRET } = process.env;
 const corsOrigins = list("CORS_ORIGINS");
 
+const llm = createOpenRouterLlm(process.env, recordLlmCall(db));
+const matcher = createIngredientMatcher(db);
+const snapDir = required("SNAP_DIR");
+const jobs = await startJobs(required("DATABASE_URL"), { db, llm, matcher, snapDir });
+
 const app = createServer({
   db,
-  llm: createOpenRouterLlm(process.env, recordLlmCall(db)),
+  llm,
+  matcher,
+  snaps: { snapDir, enqueueDetect: jobs.enqueueDetect },
   auth: createAuth(db, {
     secret: required("AUTH_SECRET"),
     baseUrl: required("PUBLIC_URL"),
@@ -44,6 +53,11 @@ const app = createServer({
   corsOrigins,
   imageDir: process.env.IMAGE_DIR || undefined,
   ownerEmails: list("OWNER_EMAILS").map((email) => email.toLowerCase()),
+});
+
+process.on("SIGTERM", async () => {
+  await jobs.stop();
+  process.exit(0);
 });
 
 export default {

@@ -5,6 +5,7 @@
   "references": [
     { "path": "../../packages/schema" },
     { "path": "../../packages/db" },
-    { "path": "../../packages/llm" }
+    { "path": "../../packages/llm" },
+    { "path": "../../packages/recognition" }
   ]
 }

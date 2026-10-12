@@ -1,6 +1,7 @@
 import { join } from "node:path";
 import type { Db } from "@snapcook/db";
 import type { Llm } from "@snapcook/llm";
+import { createIngredientMatcher, type IngredientMatcher } from "@snapcook/recognition";
 import { sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
@@ -9,26 +10,30 @@ import { fail, type HouseholdEnv, type SessionEnv } from "./http";
 import type { Auth } from "./modules/auth/auth";
 import { householdRoutes, sessionRoutes } from "./modules/household/routes";
 import { membership } from "./modules/household/service";
-import { createIngredientMatcher } from "./modules/pantry/match";
 import { pantryRoutes } from "./modules/pantry/routes";
+import { type SnapDeps, snapRoutes } from "./modules/snaps/routes";
 
 export type AppDeps = {
   db: Db;
   auth: Auth;
   llm: Llm;
   /** Browser origins allowed to call the API. Native clients send no Origin header. */
+  /** Shared with the detection job when one runs. */
+  matcher?: IngredientMatcher;
   corsOrigins: string[];
   /** Directory that holds the recipe pictures. With none, no picture is served. */
   imageDir?: string;
   /** A household created by one of these addresses gets the owner plan. Lower case. */
   ownerEmails: string[];
+  snaps: Omit<SnapDeps, "db">;
 };
 
 // A picture never changes once made: its name is the recipe version it belongs to.
 const IMAGE_NAME = /^[0-9a-f-]{36}\.webp$/;
 
-export function createApp({ db, auth, llm, corsOrigins, imageDir, ownerEmails }: AppDeps) {
-  const matcher = createIngredientMatcher(db);
+export function createApp(deps: AppDeps) {
+  const { db, auth, llm, corsOrigins, imageDir, ownerEmails } = deps;
+  const matcher = deps.matcher ?? createIngredientMatcher(db);
 
   const session = createMiddleware<SessionEnv>(async (c, next) => {
     const found = await auth.api.getSession({ headers: c.req.raw.headers });
@@ -55,7 +60,8 @@ export function createApp({ db, auth, llm, corsOrigins, imageDir, ownerEmails }:
   const inHousehold = new Hono<HouseholdEnv>()
     .use(session, household)
     .route("/", householdRoutes(db, llm, matcher))
-    .route("/", pantryRoutes(db, matcher));
+    .route("/", pantryRoutes(db, matcher))
+    .route("/", snapRoutes({ db, ...deps.snaps }));
 
   return new Hono()
     .basePath("/api/v1")

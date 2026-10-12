@@ -98,3 +98,22 @@ export const PantryPatch = PantryFields.partial().refine(
   { message: "quantity and unit change together" },
 );
 export type PantryPatch = z.infer<typeof PantryPatch>;
+
+/** One reviewed proposal the household accepted, as it should land in the pantry. */
+export const AcceptedProposal = z.object({
+  ingredient_id: Id.nullable(),
+  display_name: z.string().trim().min(1).max(120),
+  quantity: Quantity.nullable(),
+  unit: Unit.nullable(),
+  location: Location,
+  confidence: z.number().min(0).max(1).nullable(),
+  /** Set when the item matches one already in the pantry: which one, and what to do. */
+  merge: z.object({ existing_item_id: Id, choice: MergeChoice }).optional(),
+});
+export type AcceptedProposal = z.infer<typeof AcceptedProposal>;
+
+export const SnapCommitInput = z.object({ accepted: z.array(AcceptedProposal).min(1).max(200) });
+export type SnapCommitInput = z.infer<typeof SnapCommitInput>;
+
+/** The largest photo the API accepts. The app sends far smaller ones. */
+export const MAX_PHOTO_BYTES = 20 * 1024 * 1024;
