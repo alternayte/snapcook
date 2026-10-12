@@ -1,26 +1,17 @@
-import { Image } from "expo-image";
 import { Redirect, Tabs } from "expo-router";
+import { House, type LucideIcon, Refrigerator } from "lucide-react-native";
+import type { ColorValue } from "react-native";
 import { Failed, Loading } from "@/components/scrap/status";
 import { useMe } from "@/lib/queries";
 import { COLORS } from "@/lib/theme";
 import { useT } from "@/lib/use-t";
 
-const ICON = 30;
+const ICON = 24;
 
-const icon = (source: number) =>
-  function TabIcon({ focused }: { focused: boolean }) {
-    return (
-      <Image
-        source={source}
-        contentFit="contain"
-        style={{
-          width: ICON,
-          height: ICON,
-          opacity: focused ? 1 : 0.55,
-          transform: [{ rotate: focused ? "-8deg" : "0deg" }],
-        }}
-      />
-    );
+// Line icons, drawn slightly heavier when the tab is open.
+const icon = (Icon: LucideIcon) =>
+  function TabIcon({ color, focused }: { color: ColorValue; focused: boolean }) {
+    return <Icon size={ICON} color={String(color)} strokeWidth={focused ? 2.5 : 1.75} />;
   };
 
 export default function TabsLayout() {
@@ -34,7 +25,7 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: COLORS.ink,
+        tabBarActiveTintColor: COLORS.tomato,
         tabBarInactiveTintColor: COLORS.inkSoft,
         tabBarLabelStyle: { fontFamily: "DMSans_700Bold", fontSize: 12 },
         tabBarStyle: {
@@ -50,14 +41,14 @@ export default function TabsLayout() {
         name="pantry"
         options={{
           title: t("tabs.pantry"),
-          tabBarIcon: icon(require("@/assets/stickers/tomato.png")),
+          tabBarIcon: icon(Refrigerator),
         }}
       />
       <Tabs.Screen
         name="household"
         options={{
           title: t("tabs.household"),
-          tabBarIcon: icon(require("@/assets/stickers/spoon.png")),
+          tabBarIcon: icon(House),
         }}
       />
     </Tabs>
