@@ -79,6 +79,9 @@ export function plan(
     ...kitchen.pantry.flatMap((item) => (item.ingredient_id ? [item.ingredient_id] : [])),
     ...kitchen.profile.staples,
   ]);
+  const stocked = new Set(
+    kitchen.pantry.flatMap((item) => (item.ingredient_id ? [item.ingredient_id] : [])),
+  );
   const pantryById = new Map(kitchen.pantry.map((item) => [item.id, item]));
   const scale = controls.servings / recipe.base_servings;
   const noAlcohol = (id: string) =>
@@ -88,9 +91,10 @@ export function plan(
     const chosen = controls.swaps
       .filter((swap) => swap.ingredient_id === line.ingredient_id)
       .flatMap((swap) => pantryById.get(swap.pantry_item_id)?.ingredient_id ?? []);
-    const listed = (recipe.substitutes.get(line.ingredient_id) ?? []).filter((id) =>
-      onHand.has(id),
-    );
+    // Something really in the pantry is a better stand-in than an assumed staple.
+    const listed = (recipe.substitutes.get(line.ingredient_id) ?? [])
+      .filter((id) => onHand.has(id))
+      .sort((a, b) => Number(stocked.has(b)) - Number(stocked.has(a)));
     return {
       ...line,
       quantity:
@@ -180,7 +184,7 @@ export const ADAPT_SYSTEM = [
   "1. Return every ingredient the dish uses. Use only ingredient ids from the input: the recipe's own, or one from that ingredient's stand_ins list. For a stand-in, set substituted_for to the id it replaces.",
   "2. An ingredient marked banned must not appear. Use one of its stand_ins. If it has none and its role is not core, leave it out and adjust the steps.",
   "3. Never drop or replace a core ingredient that is not banned, unless the household chose a swap for it (it is then first in stand_ins).",
-  "4. When an ingredient is not on hand but a stand_in is, prefer the stand-in. Adjust its quantity where the stand-in is stronger or weaker.",
+  "4. When an ingredient is not on hand but a stand_in is, use the first stand_in that suits the dish: the list is in order of preference. Adjust its quantity where the stand-in is stronger or weaker.",
   "5. Quantities are already scaled to the servings. Keep them unless a stand-in or a control needs a change. Use the same units.",
   "6. Steps: rewrite the source steps for the final ingredients and quantities. Keep the order, the lanes and the kinds. index starts at 0 and counts up by one. Every timed step has minutes. Name quantities in the step text.",
   "7. Device steps (kind 'mc') must stay inside the device capabilities given. When no device is given, there must be no 'mc' step and no mc field.",

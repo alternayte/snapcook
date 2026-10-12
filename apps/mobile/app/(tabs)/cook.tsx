@@ -6,7 +6,7 @@ import {
 } from "@snapcook/schema";
 import { Link } from "expo-router";
 import { useState } from "react";
-import { View } from "react-native";
+import { Pressable, View } from "react-native";
 import { ResultCard } from "@/components/cook/result-card";
 import { Card, Label, Page } from "@/components/scrap/paper";
 import { Loading } from "@/components/scrap/status";
@@ -47,11 +47,14 @@ function Cook({ householdId, profile }: { householdId: string; profile: Househol
   const stocked = (pantry.data ?? []).filter((item) => item.ingredient_id !== null);
   const times = [...new Set([...TIMES_MIN, profile.default_time_min])].sort((a, b) => a - b);
 
-  const ask = () =>
+  const ask = () => {
+    // The old answer goes at once, so a new one is visibly on its way.
+    setPages([]);
     suggest.mutate(
       { input: { ...input, craving: input.craving.trim() || null } },
       { onSuccess: (page) => setPages([page]) },
     );
+  };
   const more = () =>
     last?.next_cursor
       ? suggest.mutate(
@@ -186,7 +189,13 @@ function Cook({ householdId, profile }: { householdId: string; profile: Househol
       </Card>
 
       <Button disabled={suggest.isPending} onPress={ask}>
-        <Text>{pages.length > 0 ? t("cook.again") : t("cook.submit")}</Text>
+        <Text>
+          {suggest.isPending
+            ? t("cook.looking")
+            : pages.length > 0
+              ? t("cook.again")
+              : t("cook.submit")}
+        </Text>
       </Button>
       {suggest.isError ? (
         <Text className="font-medium text-sm text-tomato">{t("common.error")}</Text>
@@ -199,6 +208,17 @@ function Cook({ householdId, profile }: { householdId: string; profile: Househol
         <Button variant="paper" disabled={suggest.isPending} onPress={more}>
           <Text>{t("cook.more")}</Text>
         </Button>
+      ) : null}
+
+      {suggest.isPending ? (
+        <View className="items-center py-4">
+          <Sticker name="pan" size={72} angle={-8} />
+        </View>
+      ) : null}
+      {results.length > 0 && last && !last.next_cursor && !suggest.isPending ? (
+        <Text variant="hand" className="text-center">
+          {t("cook.end")}
+        </Text>
       ) : null}
 
       {pages.length > 0 && results.length === 0 ? (
@@ -222,14 +242,16 @@ function Cook({ householdId, profile }: { householdId: string; profile: Househol
             <Text variant="label">{t("cook.closest")}</Text>
           </Label>
           {pages[0].closest.map((miss) => (
-            <View key={miss.recipe_version_id} className="gap-0.5">
-              <Text variant="strong">{miss.title}</Text>
-              <Text variant="small">
-                {t("cook.closest.needs", {
-                  items: sentence(miss.missing_core.map((id) => names[id] ?? "")),
-                })}
-              </Text>
-            </View>
+            <Link key={miss.recipe_version_id} href={`/recipe/${miss.recipe_id}`} asChild>
+              <Pressable className="gap-0.5 border-b border-b-hairline border-ink/30 py-2">
+                <Text variant="strong">{miss.title}</Text>
+                <Text variant="small">
+                  {t("cook.closest.needs", {
+                    items: sentence(miss.missing_core.map((id) => names[id] ?? "")),
+                  })}
+                </Text>
+              </Pressable>
+            </Link>
           ))}
         </Card>
       ) : null}

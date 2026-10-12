@@ -1,4 +1,6 @@
 import type {
+  AdaptationControls,
+  AdaptResponse,
   HouseholdProfile,
   Location,
   Me,
@@ -6,10 +8,11 @@ import type {
   PantryItem,
   PantryPatch,
   ProfileInput,
+  RecipeView,
   SuggestInput,
   SuggestResponse,
 } from "@snapcook/schema";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, api, unwrap } from "@/lib/api";
 
 // The pantry is shared by the household, so another member's change must show without a reload.
@@ -144,5 +147,35 @@ export function useSuggest() {
   return useMutation({
     mutationFn: ({ input, cursor }: { input: SuggestInput; cursor?: string }) =>
       unwrap<SuggestResponse>(api.suggestions.$post({ json: input, query: { cursor } })),
+  });
+}
+
+export function useRecipe(recipeId: string) {
+  return useQuery({
+    queryKey: ["recipe", recipeId],
+    staleTime: Number.POSITIVE_INFINITY,
+    queryFn: () => unwrap<RecipeView>(api.recipes[":recipeId"].$get({ param: { recipeId } })),
+  });
+}
+
+/**
+ * The recipe fitted to the household under the given controls. A change of controls keeps the
+ * last answer on screen until the new one arrives.
+ */
+export function useAdaptation(
+  householdId: string,
+  versionId: string | undefined,
+  controls: Partial<AdaptationControls>,
+) {
+  return useQuery({
+    queryKey: ["adaptation", householdId, versionId, controls],
+    enabled: versionId !== undefined,
+    placeholderData: keepPreviousData,
+    retry: false,
+    staleTime: 60_000,
+    queryFn: () =>
+      unwrap<AdaptResponse>(
+        api.adaptations.$post({ json: { recipe_version_id: versionId ?? "", controls } }),
+      ),
   });
 }

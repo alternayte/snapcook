@@ -141,6 +141,7 @@ export async function adapt(
     .select({
       id: ingredients.id,
       name: ingredients.name,
+      category: ingredients.category,
       allergens: ingredients.allergens,
       contains: ingredients.contains,
       grams_per_unit: ingredients.grams_per_unit,
@@ -185,8 +186,9 @@ export async function adapt(
 
   const planned = plan(recipe, kitchen, controls);
   const name = (id: string) => recipe.ingredients.get(id)?.name ?? "";
-  // What the household could use in place of an ingredient it lacks: anything in the pantry
-  // that it may eat. The model decides whether the swap works and says so if it does not.
+  // What the household could try in place of an ingredient it lacks: pantry items of the same
+  // kind that it may eat. The model decides whether the swap works and says so if it does not.
+  const category = new Map(known.map((i) => [i.id, i.category]));
   const onHand = new Set(pantry.flatMap((p) => (p.ingredient_id ? [p.ingredient_id] : [])));
   const bannedIds = new Set(planned.lines.filter((l) => l.banned).map((l) => l.ingredient_id));
   const swap_options = Object.fromEntries(
@@ -198,6 +200,7 @@ export async function adapt(
           .filter(
             (p) =>
               p.ingredient_id &&
+              category.get(p.ingredient_id) === category.get(l.ingredient_id) &&
               !bannedIds.has(p.ingredient_id) &&
               !lineIds.includes(p.ingredient_id),
           )
