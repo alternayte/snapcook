@@ -11,6 +11,7 @@ import type { Auth } from "./modules/auth/auth";
 import { cookRoutes } from "./modules/cook/routes";
 import { householdRoutes, sessionRoutes } from "./modules/household/routes";
 import { membership } from "./modules/household/service";
+import { listRoutes } from "./modules/list/routes";
 import { pantryRoutes } from "./modules/pantry/routes";
 import { recipeRoutes } from "./modules/recipes/routes";
 import { type SnapDeps, snapRoutes } from "./modules/snaps/routes";
@@ -69,6 +70,7 @@ export function createApp(deps: AppDeps) {
     .route("/", pantryRoutes(db, matcher))
     .route("/", snapRoutes({ db, ...deps.snaps }))
     .route("/", cookRoutes(db, llm))
+    .route("/", listRoutes(db, matcher))
     .route("/", recipeRoutes({ db, llm, model: deps.adaptModel }))
     .route("/", suggestionRoutes({ db, llm, corpus: createCorpusReader(db) }));
 

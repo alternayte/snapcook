@@ -117,3 +117,45 @@ export type SnapCommitInput = z.infer<typeof SnapCommitInput>;
 
 /** The largest photo the API accepts. The app sends far smaller ones. */
 export const MAX_PHOTO_BYTES = 20 * 1024 * 1024;
+
+/** One line to add to the shopping list: typed text, or an ingredient a recipe needs. */
+export const ListAddItem = z.union([
+  z.object({ text: z.string().trim().min(1).max(120) }),
+  z.object({
+    ingredient_id: Id.nullable(),
+    display_name: z.string().trim().min(1).max(120),
+    quantity: Quantity.nullable(),
+    unit: Unit.nullable(),
+    /** The recipe that wants it, shown on the line. */
+    recipe_id: Id.optional(),
+  }),
+]);
+export type ListAddItem = z.infer<typeof ListAddItem>;
+
+export const ListAddInput = z.object({ items: z.array(ListAddItem).min(1).max(50) });
+
+export const ListPatch = z
+  .object({
+    bought: z.boolean(),
+    display_name: z.string().trim().min(1).max(120),
+    quantity: Quantity.nullable(),
+    unit: Unit.nullable(),
+  })
+  .partial()
+  .refine((p) => (p.quantity === undefined) === (p.unit === undefined), {
+    message: "quantity and unit change together",
+  });
+export type ListPatch = z.infer<typeof ListPatch>;
+
+export const PutAwayInput = z.object({ location: Location });
+
+/** A saved recipe as the saved list shows it. */
+export const SavedCard = z.object({
+  recipe_id: Id,
+  title: z.string(),
+  cuisine: z.string(),
+  time_total_min: z.number().int(),
+  image: z.string().nullable(),
+  saved_at: z.date(),
+});
+export type SavedCard = z.infer<typeof SavedCard>;
