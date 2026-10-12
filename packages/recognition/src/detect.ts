@@ -12,7 +12,8 @@ export const DetectionOutput = z.object({
       /** The plain cooking ingredient this most likely is. */
       canonical_guess: z.string().min(1),
       quantity: z.number().positive().nullable(),
-      unit: Unit.nullable(),
+      /** As the model wrote it. A unit outside the app's own is handled in `normaliseQuantity`. */
+      unit: z.string().nullable(),
       /** How sure the count or amount is, from 0 to 1. Null when no amount is given. */
       count_confidence: z.number().min(0).max(1).nullable(),
       is_packaged: z.boolean(),
@@ -45,14 +46,18 @@ export const detectionHint = (location: Location) =>
     "A photo with no food returns an empty list.",
   ].join("\n");
 
-// An amount printed on a label, such as "450 g", "1,5 kg", "500ml" or "1 L".
-const PACK_SIZE = /(\d+(?:[.,]\d+)?)\s*(kg|g|ml|cl|l)\b/i;
+// An amount printed on a label, such as "450 g", "1,5 kg", "500ml", "1 L" or "12 fl oz".
+const PACK_SIZE = /(\d+(?:[.,]\d+)?)\s*(kg|g|ml|cl|l|fl\.? ?oz|oz|lbs?)\b/i;
 const PACK_UNITS: Record<string, ["g" | "ml", number]> = {
   kg: ["g", 1000],
   g: ["g", 1],
   ml: ["ml", 1],
   cl: ["ml", 10],
   l: ["ml", 1000],
+  floz: ["ml", 29.57],
+  oz: ["g", 28.35],
+  lb: ["g", 453.6],
+  lbs: ["g", 453.6],
 };
 
 /**
@@ -64,13 +69,17 @@ export function normaliseQuantity(
 ): Pick<SnapProposal, "quantity" | "unit"> {
   const printed = item.label_text ? PACK_SIZE.exec(item.label_text) : null;
   if (printed) {
-    const [unit, factor] = PACK_UNITS[(printed[2] ?? "").toLowerCase()] ?? ["g", 1];
+    const written = (printed[2] ?? "").toLowerCase().replace(/[. ]/g, "");
+    const [unit, factor] = PACK_UNITS[written] ?? ["g", 1];
     const packs = item.unit === "piece" && item.quantity ? item.quantity : 1;
     const amount = Number((printed[1] ?? "").replace(",", ".")) * factor * packs;
-    return { quantity: Math.round(amount * 100) / 100, unit };
+    return { quantity: Math.round(amount), unit };
   }
   if (item.quantity === null) return { quantity: null, unit: null };
-  return { quantity: Math.round(item.quantity * 100) / 100, unit: item.unit ?? "piece" };
+  const unit = item.unit === null ? "piece" : Unit.safeParse(item.unit.toLowerCase()).data;
+  // An amount in a unit the app does not use says nothing reliable: the item is kept as "some".
+  if (!unit) return { quantity: null, unit: null };
+  return { quantity: Math.round(item.quantity * 100) / 100, unit };
 }
 
 /** Sends one photo to the vision model and returns what it saw. */

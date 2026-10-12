@@ -83,14 +83,21 @@ export async function evalDetect([dir = ".internal/golden"]: string[]) {
     if (!label) continue;
     const started = Date.now();
     const media = MEDIA[extname(name).toLowerCase()] ?? "image/jpeg";
-    const seen = await detect(
+    // A photo the model fails on scores as nothing found, and the run goes on.
+    const proposals = await detect(
       llm,
       await Bun.file(join(dir, name)).bytes(),
       media,
       label.location,
       ctx,
-    );
-    const proposals = await toProposals(seen.items, matcher, llm, ctx);
+    )
+      .then((seen) => toProposals(seen.items, matcher, llm, ctx))
+      .catch((error: unknown) => {
+        console.log(
+          `${name}: FAILED ${error instanceof Error ? error.message.slice(0, 120) : error}`,
+        );
+        return [];
+      });
     const names = await matcher.names();
     const byId = new Map(
       await Promise.all(names.map(async (n) => [(await matcher.match(n))?.id, n] as const)),

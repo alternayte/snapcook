@@ -28,6 +28,16 @@ test.each([
     { quantity: 3, unit: "piece" },
   ],
   [
+    "an imperial pack size is converted",
+    { quantity: 12, unit: "oz", label_text: "12 fl oz" },
+    { quantity: 355, unit: "ml" },
+  ],
+  [
+    "an amount in a unit the app does not use is dropped",
+    { quantity: 2, unit: "bunch", label_text: null },
+    { quantity: null, unit: null },
+  ],
+  [
     "no amount stays empty",
     { quantity: null, unit: null, label_text: null },
     { quantity: null, unit: null },
