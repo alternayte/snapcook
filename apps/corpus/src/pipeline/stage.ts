@@ -5,15 +5,17 @@ import {
   DeviceVariantDraft,
   type DishCandidate,
   RecipeDraft,
+  ReviewVerdict,
   ValidationReport,
 } from "@snapcook/schema";
 import { eq } from "drizzle-orm";
+import { loadGridConfig } from "../grid/config";
 import { loadPipelineConfig } from "./config";
 import { device } from "./device";
 import { publish } from "./publish";
 import { research } from "./research";
 import { review } from "./review";
-import { latest, type Selection, save, selectedDishes } from "./store";
+import { discardDrafts, latest, type Selection, save, selectedDishes } from "./store";
 import { indexIngredients, validateDraft, validateVariant } from "./validate";
 import { ingredientList, write } from "./write";
 
@@ -52,6 +54,7 @@ const STAGE_NAMES = [...new Set<string>(FULL_RUN)];
 async function context(db: Db) {
   const dir = process.env.CORPUS_DIR ?? ".internal/corpus";
   const config = await loadPipelineConfig(join(dir, "pipeline.json"));
+  const grid = await loadGridConfig(join(dir, "grid.json"));
   const llm = createOpenRouterLlm(process.env, recordLlmCall(db));
   const index = indexIngredients(await db.select().from(schema.ingredients));
   const [profile] = await db
@@ -59,7 +62,7 @@ async function context(db: Db) {
     .from(schema.deviceProfiles)
     .where(eq(schema.deviceProfiles.id, "mc_smart"));
   if (!profile) throw new Error("the device profile is not seeded; run `just seed`");
-  return { config, llm, index, profile, ingredients: await ingredientList(db) };
+  return { config, grid, llm, index, profile, ingredients: await ingredientList(db) };
 }
 type Context = Awaited<ReturnType<typeof context>>;
 
@@ -97,7 +100,7 @@ function runner(db: Db, ctx: Context, name: StageName) {
       case "validate":
         return validate(db, ctx, dish);
       case "review":
-        return review(db, ctx.llm, ctx.config, dish);
+        return review(db, ctx.llm, ctx.config, ctx.grid, ctx.profile, dish);
       case "publish":
         return publish(db, ctx.llm, dish, ctx.index, models);
     }
@@ -168,4 +171,28 @@ export async function stage([name, ...args]: string[]) {
   console.log(`${name}: ${worked} dish(es) processed, ${failed} failed`);
   await pool.end();
   if (failed > 0) process.exit(1);
+}
+
+/**
+ * `corpus redraft [--batch n] [--dish name]`. Discards the drafts of every selected dish that is
+ * not published and whose newest draft did not pass review. Research is kept.
+ */
+export async function redraft(args: string[]) {
+  const selection = parseSelection(args);
+  const databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl) throw new Error("DATABASE_URL is not set");
+  const { db, pool } = createDb(databaseUrl);
+  let discarded = 0;
+  for (const dish of await selectedDishes(db, selection)) {
+    if (dish.recipe_id) continue;
+    const draft = await latest(db, dish.id, "write", RecipeDraft);
+    if (!draft) continue;
+    const verdict = await latest(db, dish.id, "review", ReviewVerdict);
+    if (verdict?.attempt === draft.attempt && verdict.value.verdict === "pass") continue;
+    await discardDrafts(db, dish);
+    discarded += 1;
+    console.log(dish.name);
+  }
+  console.log(`redraft: ${discarded} dish(es) reset`);
+  await pool.end();
 }

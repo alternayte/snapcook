@@ -67,6 +67,7 @@ export function validateDraft(
   for (const band of config.bands) {
     if (band.dish_proteins.length > 0 && !band.dish_proteins.includes(dish.primary_protein))
       continue;
+    if (band.dish_types.length > 0 && !band.dish_types.includes(dish.dish_type)) continue;
     let grams = 0;
     let counted = 0;
     for (const line of draft.ingredients) {

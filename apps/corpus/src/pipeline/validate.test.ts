@@ -172,3 +172,12 @@ test("an oven step with no minutes in a device variant is reported", () => {
   };
   expect(validateVariant(variant, device).map((p) => p.code)).toEqual(["missing_minutes"]);
 });
+
+test("a quantity band applies only to its dish types", () => {
+  const thin = { ...good, ingredients: [{ ...chicken, quantity: 160 }] };
+  const mains = { ...config, bands: config.bands.map((b) => ({ ...b, dish_types: ["main"] })) };
+  const codesFor = (dish_type: string) =>
+    validateDraft(thin, { ...dish, dish_type }, index, mains).map((p) => p.code);
+  expect(codesFor("main")).toContain("quantity_band");
+  expect(codesFor("soup")).not.toContain("quantity_band");
+});

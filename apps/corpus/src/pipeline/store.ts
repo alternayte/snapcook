@@ -1,6 +1,6 @@
 import { type Db, schema } from "@snapcook/db";
 import type { DishCandidate, PipelineStage } from "@snapcook/schema";
-import { and, asc, desc, eq, isNotNull } from "drizzle-orm";
+import { and, asc, desc, eq, isNotNull, ne } from "drizzle-orm";
 import type { z } from "zod";
 
 const { dishCandidates, dishStageOutputs } = schema;
@@ -73,4 +73,15 @@ export async function selectedDishes(db: Db, selection: Selection): Promise<Dish
     )
     .orderBy(asc(dishCandidates.batch), asc(dishCandidates.cuisine), asc(dishCandidates.name));
   return rows;
+}
+
+/**
+ * Removes a dish's drafts and everything judged on them, so its next run writes a first draft
+ * again from the stored research. Refuses a published dish.
+ */
+export async function discardDrafts(db: Db, dish: DishCandidate) {
+  if (dish.recipe_id) throw new Error(`${dish.name} is published`);
+  await db
+    .delete(dishStageOutputs)
+    .where(and(eq(dishStageOutputs.candidate_id, dish.id), ne(dishStageOutputs.stage, "research")));
 }

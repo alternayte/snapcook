@@ -59,7 +59,7 @@ export async function write(
 
   const prompt = [
     `Dish: ${dish.name} (${dish.cuisine})`,
-    `Classification: ${dish.dish_type}, ${dish.primary_protein}, ${dish.technique}, ${dish.time_band}`,
+    `Classification: ${dish.dish_type}, ${dish.primary_protein}, ${dish.technique}`,
     `Write for ${BASE_SERVINGS} servings.`,
     `Allowed tags: ${config.tags.join(", ")}`,
     "",
