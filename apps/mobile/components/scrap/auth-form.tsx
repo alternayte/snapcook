@@ -38,7 +38,8 @@ export function AuthForm({ mode }: { mode: "signIn" | "signUp" }) {
     ).catch(() => ({ error: true }));
     setBusy(false);
     if (result.error) return setFailed(true);
-    await client.invalidateQueries({ queryKey: ["me"] });
+    // The answer cached while signed out is dropped, so the next screen waits for the new one.
+    client.removeQueries({ queryKey: ["me"] });
     router.replace("/");
   }
 
