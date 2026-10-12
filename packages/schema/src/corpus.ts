@@ -3,6 +3,7 @@ import {
   Allergen,
   CandidateStatus,
   DeviceProfileId,
+  DietFlag,
   Embedding,
   Id,
   IngredientCategory,
@@ -21,6 +22,7 @@ export const Ingredient = z.object({
   aliases: z.array(z.string().min(1)),
   category: IngredientCategory,
   allergens: z.array(Allergen),
+  contains: z.array(DietFlag),
   default_unit: Unit,
   /** Grams in one piece. Set for every ingredient that is counted. */
   grams_per_unit: z.number().positive().nullable(),

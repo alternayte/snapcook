@@ -101,3 +101,46 @@ export const CookSession = z.object({
   notes: z.string().nullable(),
 });
 export type CookSession = z.infer<typeof CookSession>;
+
+/** What the client sends: any part of the request it wants to override. The profile fills the rest. */
+export const SuggestInput = SuggestRequest.partial().extend({
+  craving: z.string().trim().max(80).nullable().optional(),
+});
+export type SuggestInput = z.infer<typeof SuggestInput>;
+
+/** One suggested dish with what a result card shows. */
+export const SuggestionCard = SuggestionResult.extend({
+  recipe_id: Id,
+  title: z.string(),
+  cuisine: z.string(),
+  time_total_min: z.number().int(),
+  time_active_min: z.number().int(),
+  difficulty: z.number().int(),
+  has_device_variant: z.boolean(),
+  /** File name of the dish picture, or null when the recipe has none. */
+  image: z.string().nullable(),
+  /** Ingredients the household would rather not eat that this dish uses. */
+  disliked: z.array(Id),
+});
+export type SuggestionCard = z.infer<typeof SuggestionCard>;
+
+/** A dish the household cannot make yet, and the one or two core ingredients it lacks. */
+export const NearMiss = z.object({
+  recipe_version_id: Id,
+  recipe_id: Id,
+  title: z.string(),
+  image: z.string().nullable(),
+  missing_core: z.array(Id),
+});
+export type NearMiss = z.infer<typeof NearMiss>;
+
+export const SuggestResponse = z.object({
+  run_id: Id,
+  results: z.array(SuggestionCard),
+  closest: z.array(NearMiss),
+  /** The name of every ingredient id in this response. */
+  names: z.record(Id, z.string()),
+  /** Send this back to get the next results of the same run. Null when there are no more. */
+  next_cursor: z.string().nullable(),
+});
+export type SuggestResponse = z.infer<typeof SuggestResponse>;

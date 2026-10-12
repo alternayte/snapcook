@@ -8,6 +8,7 @@ const COLUMNS = [
   "aliases",
   "category",
   "allergens",
+  "contains",
   "default_unit",
   "grams_per_unit",
   "ml_per_unit",
@@ -52,7 +53,8 @@ export function parseIngredientSeed(tsv: string): IngredientSeed[] {
       problems.push(`${at}: expected ${COLUMNS.length} cells, found ${cells.length}`);
       return;
     }
-    const [name, aliases, category, allergens, unit, grams, ml, staple] = cells as [
+    const [name, aliases, category, allergens, contains, unit, grams, ml, staple] = cells as [
+      string,
       string,
       string,
       string,
@@ -67,6 +69,7 @@ export function parseIngredientSeed(tsv: string): IngredientSeed[] {
       aliases: list(aliases).map(foldName),
       category: category.trim(),
       allergens: list(allergens),
+      contains: list(contains),
       default_unit: unit.trim(),
       grams_per_unit: numberOrNull(grams),
       ml_per_unit: numberOrNull(ml),
@@ -112,6 +115,7 @@ export async function upsertIngredients(db: Db, rows: IngredientSeed[]) {
         aliases: sql`excluded.aliases`,
         category: sql`excluded.category`,
         allergens: sql`excluded.allergens`,
+        contains: sql`excluded.contains`,
         default_unit: sql`excluded.default_unit`,
         grams_per_unit: sql`excluded.grams_per_unit`,
         ml_per_unit: sql`excluded.ml_per_unit`,

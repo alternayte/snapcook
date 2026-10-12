@@ -18,6 +18,22 @@ export const Allergen = z.enum([
 ]);
 export type Allergen = z.infer<typeof Allergen>;
 
+/**
+ * What an ingredient is or is made from, where a diet cares. "meat" covers anything from a
+ * slaughtered land animal, such as stock, lard and gelatine.
+ */
+export const DietFlag = z.enum([
+  "meat",
+  "pork",
+  "fish",
+  "shellfish",
+  "dairy",
+  "egg",
+  "honey",
+  "alcohol",
+]);
+export type DietFlag = z.infer<typeof DietFlag>;
+
 export const Unit = z.enum(["g", "ml", "piece", "tbsp", "tsp", "cup"]);
 export type Unit = z.infer<typeof Unit>;
 

@@ -18,6 +18,7 @@ const ingredient = (
   aliases: [],
   category,
   allergens: [],
+  contains: [],
   default_unit: "g",
   grams_per_unit: null,
   ml_per_unit: null,
