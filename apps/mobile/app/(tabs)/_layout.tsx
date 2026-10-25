@@ -1,6 +1,7 @@
 import { Redirect, Tabs } from "expo-router";
 import { ChefHat, House, type LucideIcon, Refrigerator, ShoppingBasket } from "lucide-react-native";
 import type { ColorValue } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Failed, Loading } from "@/components/scrap/status";
 import { useHouseholdSync } from "@/lib/queries";
 import { COLORS } from "@/lib/theme";
@@ -17,6 +18,8 @@ const icon = (Icon: LucideIcon) =>
 export default function TabsLayout() {
   const t = useT();
   const me = useHouseholdSync();
+  // The system navigation bar sits over the app's bottom edge, so the tab bar grows by its height.
+  const { bottom } = useSafeAreaInsets();
   if (me.isPending) return <Loading />;
   if (me.isError) return <Failed onRetry={() => me.refetch()} />;
   if (!me.data) return <Redirect href="/sign-in" />;
@@ -32,8 +35,9 @@ export default function TabsLayout() {
           backgroundColor: COLORS.card,
           borderTopColor: COLORS.ink,
           borderTopWidth: 1.5,
-          height: 64,
+          height: 64 + bottom,
           paddingTop: 6,
+          paddingBottom: bottom,
         },
       }}
     >

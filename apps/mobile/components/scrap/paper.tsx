@@ -1,4 +1,5 @@
-import type { ReactNode } from "react";
+import { BottomTabBarHeightContext } from "expo-router/js-tabs";
+import { type ReactNode, useContext } from "react";
 import { ScrollView, View, type ViewProps } from "react-native";
 import Animated, { useReducedMotion } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -7,8 +8,10 @@ import { cn } from "@/lib/utils";
 
 /** The page every screen sits on. */
 export function Page({ children, scroll = true }: { children: ReactNode; scroll?: boolean }) {
+  // Inside the tabs, the tab bar already keeps clear of the system navigation bar.
+  const inTabs = useContext(BottomTabBarHeightContext) !== undefined;
   return (
-    <SafeAreaView className="flex-1 bg-paper">
+    <SafeAreaView className="flex-1 bg-paper" edges={inTabs ? ["top", "left", "right"] : undefined}>
       {scroll ? (
         <ScrollView
           contentContainerClassName="mx-auto w-full max-w-[430px] gap-6 px-5 pb-16 pt-6"
