@@ -74,11 +74,14 @@ services:
       RESTIC_PASSWORD: ${RESTIC_PASSWORD:-}
       AWS_ACCESS_KEY_ID: ${BACKUP_S3_KEY_ID:-}
       AWS_SECRET_ACCESS_KEY: ${BACKUP_S3_SECRET:-}
+      # A link to a corpus archive from infra/corpus-export.sh, loaded once when the service starts.
+      CORPUS_URL: ${CORPUS_URL:-}
     volumes:
       - backups:/backups
-      - images:/data/images:ro
+      - images:/data/images
     depends_on:
-      postgres:
+      # The API creates the tables, so a corpus load waits for it.
+      api:
         condition: service_healthy
 
 volumes:

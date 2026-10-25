@@ -19,10 +19,10 @@ The photo upload limit is enforced by the API, so the proxy needs no body-size r
 
 A new server has an empty database. Load the recipe corpus from a machine that has it:
 
-1. Run `infra/corpus-export.sh <directory>` on that machine. The directory must be outside the repository.
-2. Copy the directory to the server.
-3. Load the rows: `docker exec -i <postgres container> psql -U snapcook -d snapcook < corpus.sql`.
-4. Copy the pictures: `docker cp images/. <api container>:/data/images/`.
+1. Run `infra/corpus-export.sh <directory>` on that machine. The directory must be outside the repository. The script writes `corpus.tar.gz` there.
+2. Upload `corpus.tar.gz` to a private bucket and make a link to it that expires, for example a presigned link.
+3. Set `CORPUS_URL` to that link and redeploy. The `backup` service loads the archive when it starts. The log line starts with `corpus load:`.
+4. Clear `CORPUS_URL` after the load.
 
 You can run the load again after a new batch. Rows that are already on the server do not change.
 

@@ -4,9 +4,8 @@
 #
 #   infra/corpus-export.sh <directory>
 #
-# Load on the server, from that directory:
-#   docker exec -i <postgres container> psql -U snapcook -d snapcook < corpus.sql
-#   docker cp images/. <api container>:/data/images/
+# It also packs both into corpus.tar.gz. To load it, put the archive behind a private link that
+# expires and set CORPUS_URL to that link on the server; the backup service loads it at start.
 set -eu
 
 out=${1:?usage: infra/corpus-export.sh <directory outside the repository>}
@@ -29,4 +28,5 @@ docker compose --env-file "$root/.env" -f "$root/infra/docker-compose.yml" exec 
 
 mkdir -p "$out/images"
 cp "$root"/data/images/*.webp "$out/images/"
+tar -czf "$out/corpus.tar.gz" -C "$out" corpus.sql images
 echo "wrote $(grep -c '^INSERT' "$out/corpus.sql") rows and $(ls "$out/images" | wc -l | tr -d ' ') pictures to $out"

@@ -1,7 +1,12 @@
 #!/bin/sh
 # Runs the backup once a day at BACKUP_AT (HHMM, in TZ), and the restore drill on the first day
-# of each month after that day's backup. A failure is logged and the loop goes on.
+# of each month after that day's backup. At start it loads the corpus archive at CORPUS_URL, if
+# set. A failure is logged and the loop goes on.
 set -u
+
+if [ -n "${CORPUS_URL:-}" ]; then
+  corpus-load.sh || echo "corpus load: FAILED" >&2
+fi
 
 last=""
 echo "backup: waiting for ${BACKUP_AT} ${TZ} each day"
