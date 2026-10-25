@@ -1,3 +1,7 @@
+# The test database port. Set TEST_DB_PORT when another program holds the default.
+test_db_port := env("TEST_DB_PORT", "54330")
+export TEST_DATABASE_URL := "postgres://postgres:test@127.0.0.1:" + test_db_port + "/postgres"
+
 # The gate: a change is done when this is green.
 check: test-db
     checks/leak-guard.sh --tracked
@@ -21,7 +25,7 @@ eval *args:
 dev: test-db
     #!/usr/bin/env bash
     trap 'kill 0' EXIT
-    DATABASE_URL=postgres://postgres:test@127.0.0.1:54330/postgres CORS_ORIGINS=http://localhost:8081 \
+    DATABASE_URL="$TEST_DATABASE_URL" CORS_ORIGINS=http://localhost:8081 \
       PUBLIC_URL=http://localhost:3000 AUTH_SECRET=dev-only-dev-only-dev-only-dev-only \
       SNAP_DIR="${TMPDIR:-/tmp}/snapcook-dev-snaps" \
       bun --watch apps/api/src/index.ts &
@@ -33,7 +37,7 @@ test-db:
     set -euo pipefail
     if [ -z "$(docker ps -q -f name='^snapcook-test-db$')" ]; then
       docker run -d --rm --name snapcook-test-db -e POSTGRES_PASSWORD=test \
-        -p 127.0.0.1:54330:5432 --tmpfs /var/lib/postgresql/data pgvector/pgvector:pg17 >/dev/null
+        -p 127.0.0.1:{{test_db_port}}:5432 --tmpfs /var/lib/postgresql/data pgvector/pgvector:pg17 >/dev/null
     fi
     until docker exec snapcook-test-db psql -U postgres -h 127.0.0.1 -c 'select 1' >/dev/null 2>&1; do
       sleep 0.5

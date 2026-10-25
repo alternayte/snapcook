@@ -7,7 +7,8 @@
       "outputs": ["dist/**"]
     },
     "test": {
-      "dependsOn": ["^typecheck"]
+      "dependsOn": ["^typecheck"],
+      "passThroughEnv": ["TEST_DATABASE_URL"]
     }
   }
 }
