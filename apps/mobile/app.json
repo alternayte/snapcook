@@ -29,7 +29,8 @@
         "expo-image-picker",
         {
           "cameraPermission": "SnapCook uses the camera to photograph your fridge and cupboards.",
-          "photosPermission": "SnapCook reads the photos you choose, to list the food in them."
+          "photosPermission": "SnapCook reads the photos you choose, to list the food in them.",
+          "microphonePermission": false
         }
       ],
       "expo-notifications"
@@ -39,6 +40,15 @@
     },
     "runtimeVersion": {
       "policy": "appVersion"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "28e16854-cf30-4498-9353-f9afa7db7397"
+      }
+    },
+    "owner": "alternayte",
+    "updates": {
+      "url": "https://u.expo.dev/28e16854-cf30-4498-9353-f9afa7db7397"
     }
   }
 }
