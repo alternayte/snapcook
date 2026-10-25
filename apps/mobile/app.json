@@ -7,7 +7,11 @@
     "scheme": "snapcook",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": false
+      "supportsTablet": false,
+      "bundleIdentifier": "dev.tennant.snapcook"
+    },
+    "android": {
+      "package": "dev.tennant.snapcook"
     },
     "web": {
       "bundler": "metro",
