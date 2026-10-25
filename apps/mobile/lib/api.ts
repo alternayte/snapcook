@@ -3,10 +3,10 @@ import { Platform } from "react-native";
 import { API_URL, authClient } from "@/lib/auth";
 
 export const api = createClient(API_URL, {
-  fetch: (input: RequestInfo | URL, init?: RequestInit) => {
+  fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
     if (Platform.OS === "web") return fetch(input, { ...init, credentials: "include" });
     const headers = new Headers(init?.headers);
-    const cookie = (authClient as unknown as { getCookie: () => string }).getCookie();
+    const cookie = await authClient.getCookie();
     if (cookie) headers.set("cookie", cookie);
     return fetch(input, { ...init, headers, credentials: "omit" });
   },
