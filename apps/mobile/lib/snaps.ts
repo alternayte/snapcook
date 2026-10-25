@@ -1,5 +1,6 @@
 import type { AcceptedProposal, Location, SnapProposal } from "@snapcook/schema";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { File as DeviceFile } from "expo-file-system";
 import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
 import type { ImagePickerAsset } from "expo-image-picker";
 import { Platform } from "react-native";
@@ -25,11 +26,12 @@ export async function uploadPhoto(asset: ImagePickerAsset, location: Location) {
     compress: JPEG_QUALITY,
     format: SaveFormat.JPEG,
   });
-  // The browser sends a real file. A phone sends the file's address and lets the system read it.
+  // The browser sends a real file. A phone sends the saved file, which Expo's fetch reads as bytes;
+  // it does not accept React Native's { uri } form parts.
   const photo =
     Platform.OS === "web"
       ? new File([await (await fetch(image.uri)).blob()], "photo.jpg", { type: "image/jpeg" })
-      : ({ uri: image.uri, name: "photo.jpg", type: "image/jpeg" } as unknown as File);
+      : (new DeviceFile(image.uri) as unknown as File);
   const { snap_id } = await unwrap<{ snap_id: string }>(
     api.snaps.$post({ form: { photo, location } }),
   );
