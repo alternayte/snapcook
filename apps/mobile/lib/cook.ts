@@ -83,11 +83,46 @@ export type CookedRow = {
   finished_at: string | null;
   rating: number | null;
   servings: number;
+  /** Who cooked it. */
+  cook: string;
+  /** Whether the machine was used. */
+  machine: boolean;
 };
 
 export function useCookHistory() {
   return useQuery({
     queryKey: ["cooks"],
     queryFn: async () => (await unwrap<{ cooks: CookedRow[] }>(api.cooks.$get())).cooks,
+  });
+}
+
+export type RestoreLine = { display_name: string; quantity: number | null; unit: string | null };
+
+/** What removing a cook would put back into the pantry. */
+export function useRestoreList(id: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ["cook-restore", id],
+    enabled,
+    queryFn: async () =>
+      (await unwrap<{ lines: RestoreLine[] }>(api.cooks[":id"].restore.$get({ param: { id } })))
+        .lines,
+  });
+}
+
+export function useRemoveCook(id: string, householdId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (restore: boolean) =>
+      unwrap<undefined>(
+        api.cooks[":id"].$delete({ param: { id }, query: { restore: String(restore) } }),
+      ),
+    onSuccess: () => {
+      AsyncStorage.multiRemove([saved(id), savedStep(id)]).catch(() => {});
+      client.removeQueries({ queryKey: ["cook", id] });
+      return Promise.all([
+        client.invalidateQueries({ queryKey: ["pantry", householdId] }),
+        client.invalidateQueries({ queryKey: ["cooks"] }),
+      ]);
+    },
   });
 }

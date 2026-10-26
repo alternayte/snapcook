@@ -1,5 +1,12 @@
 import { Redirect, Tabs } from "expo-router";
-import { ChefHat, House, type LucideIcon, Refrigerator, ShoppingBasket } from "lucide-react-native";
+import {
+  BookOpen,
+  ChefHat,
+  House,
+  type LucideIcon,
+  Refrigerator,
+  ShoppingBasket,
+} from "lucide-react-native";
 import type { ColorValue } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Failed, Loading } from "@/components/scrap/status";
@@ -49,6 +56,10 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen name="cook" options={{ title: t("tabs.cook"), tabBarIcon: icon(ChefHat) }} />
+      <Tabs.Screen
+        name="recipes"
+        options={{ title: t("tabs.recipes"), tabBarIcon: icon(BookOpen) }}
+      />
       <Tabs.Screen
         name="list"
         options={{ title: t("tabs.list"), tabBarIcon: icon(ShoppingBasket) }}

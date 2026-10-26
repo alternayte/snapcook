@@ -1,4 +1,4 @@
-import type { CookView, DeviceStep } from "@snapcook/schema";
+import type { CookView, DeviceStep, Unit } from "@snapcook/schema";
 import { useKeepAwake } from "expo-keep-awake";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
@@ -11,7 +11,7 @@ import { Card, Label, Page } from "@/components/scrap/paper";
 import { Failed, Loading } from "@/components/scrap/status";
 import { Button } from "@/components/ui/button";
 import { Text } from "@/components/ui/text";
-import { saveStep, useCook } from "@/lib/cook";
+import { saveStep, useCook, useRemoveCook, useRestoreList } from "@/lib/cook";
 import { amount } from "@/lib/format";
 import { useMe } from "@/lib/queries";
 import { useT } from "@/lib/use-t";
@@ -95,8 +95,68 @@ function Cooking({ cook, householdId }: { cook: CookView; householdId: string })
   );
 }
 
+const sentence = (parts: string[]) =>
+  parts.length <= 1 ? (parts[0] ?? "") : `${parts.slice(0, -1).join(", ")} and ${parts.at(-1)}`;
+
+/** Removes the cook, after saying what goes back into the pantry. */
+function RemoveCook({ cook, householdId }: { cook: CookView; householdId: string }) {
+  const t = useT();
+  const router = useRouter();
+  const [asking, setAsking] = useState(false);
+  const restore = useRestoreList(cook.id, asking);
+  const remove = useRemoveCook(cook.id, householdId);
+  const done = () => router.replace("/(tabs)/recipes");
+  if (!asking) {
+    return (
+      <Button variant="quiet" className="self-start" onPress={() => setAsking(true)}>
+        <Text>{t("cooked.remove")}</Text>
+      </Button>
+    );
+  }
+  const lines = restore.data ?? [];
+  const items = lines.map((line) =>
+    line.quantity === null || line.unit === null
+      ? line.display_name
+      : `${amount(line.quantity, line.unit as Unit)} ${line.display_name}`,
+  );
+  return (
+    <Card tilt={0.6} className="gap-3 bg-mustard">
+      <Text variant="heading">{t("cooked.remove.title")}</Text>
+      {restore.isPending ? null : (
+        <Text>
+          {lines.length > 0
+            ? t("cooked.remove.restore", { items: sentence(items) })
+            : t("cooked.remove.nothing")}
+        </Text>
+      )}
+      {lines.length > 0 ? (
+        <Button
+          variant="paper"
+          disabled={remove.isPending}
+          onPress={() => remove.mutate(true, { onSuccess: done })}
+        >
+          <Text>{t("cooked.remove.yes")}</Text>
+        </Button>
+      ) : null}
+      <Button
+        variant="paper"
+        disabled={remove.isPending || restore.isPending}
+        onPress={() => remove.mutate(false, { onSuccess: done })}
+      >
+        <Text>{lines.length > 0 ? t("cooked.remove.only") : t("cooked.remove.plain")}</Text>
+      </Button>
+      <Button variant="quiet" onPress={() => setAsking(false)}>
+        <Text>{t("common.cancel")}</Text>
+      </Button>
+      {remove.isError ? (
+        <Text className="font-medium text-sm text-tomato">{t("common.error")}</Text>
+      ) : null}
+    </Card>
+  );
+}
+
 /** A finished cook, shown exactly as it was cooked. */
-function AsCooked({ cook }: { cook: CookView }) {
+function AsCooked({ cook, householdId }: { cook: CookView; householdId: string }) {
   const t = useT();
   const router = useRouter();
   return (
@@ -105,7 +165,7 @@ function AsCooked({ cook }: { cook: CookView }) {
         variant="quiet"
         size="sm"
         className="self-start"
-        onPress={() => (router.canGoBack() ? router.back() : router.replace("/cooked"))}
+        onPress={() => (router.canGoBack() ? router.back() : router.replace("/(tabs)/recipes"))}
       >
         <Text>← {t("recipe.back")}</Text>
       </Button>
@@ -142,6 +202,7 @@ function AsCooked({ cook }: { cook: CookView }) {
           <StepCard key={step.index} step={step} number={step.index + 1} />
         ))}
       </Card>
+      <RemoveCook cook={cook} householdId={householdId} />
     </Page>
   );
 }
@@ -154,7 +215,7 @@ export default function CookScreen() {
   if (cook.isError) return <Failed onRetry={() => cook.refetch()} />;
   if (!cook.data || !household) return <Loading />;
   return cook.data.finished_at ? (
-    <AsCooked cook={cook.data} />
+    <AsCooked cook={cook.data} householdId={household.id} />
   ) : (
     <Cooking cook={cook.data} householdId={household.id} />
   );

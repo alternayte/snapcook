@@ -8,7 +8,7 @@ import { Link } from "expo-router";
 import { useState } from "react";
 import { Pressable, View } from "react-native";
 import { ResultCard } from "@/components/cook/result-card";
-import { AddToList } from "@/components/scrap/add-to-list";
+import { AddMissing } from "@/components/recipes/add-missing";
 import { Card, Label, Page } from "@/components/scrap/paper";
 import { PlanLimit } from "@/components/scrap/plan-limit";
 import { Loading } from "@/components/scrap/status";
@@ -39,6 +39,7 @@ function Cook({ householdId, profile }: { householdId: string; profile: Househol
       use_up: [],
       craving: "",
       mc_only: false,
+      official_only: false,
     },
   );
   // Every page of the current answer, in the order it arrived.
@@ -155,6 +156,12 @@ function Cook({ householdId, profile }: { householdId: string; profile: Househol
               onPress={() => set({ mc_only: !input.mc_only })}
             />
           ) : null}
+          <Chip
+            index={3}
+            label={t("cook.officialOnly")}
+            selected={input.official_only}
+            onPress={() => set({ official_only: !input.official_only })}
+          />
         </View>
         <Field
           label={t("cook.craving")}
@@ -263,30 +270,11 @@ function Cook({ householdId, profile }: { householdId: string; profile: Househol
                   </Text>
                 </Pressable>
               </Link>
-              <AddToList
-                householdId={householdId}
-                items={miss.missing_core.map((id) => ({
-                  ingredient_id: id,
-                  display_name: names[id] ?? "",
-                  quantity: null,
-                  unit: null,
-                  recipe_id: miss.recipe_id,
-                }))}
-              />
+              <AddMissing householdId={householdId} recipeId={miss.recipe_id} variant="quiet" />
             </View>
           ))}
         </Card>
       ) : null}
-      <Link href="/saved" asChild>
-        <Button variant="quiet">
-          <Text>{t("saved.link")}</Text>
-        </Button>
-      </Link>
-      <Link href="/cooked" asChild>
-        <Button variant="quiet">
-          <Text>{t("cooked.link")}</Text>
-        </Button>
-      </Link>
     </Page>
   );
 }

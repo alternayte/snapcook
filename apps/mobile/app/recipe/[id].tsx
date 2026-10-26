@@ -5,6 +5,8 @@ import { useState } from "react";
 import { View } from "react-native";
 import { pictureUrl } from "@/components/cook/result-card";
 import { StepCard } from "@/components/recipe/step-card";
+import { AddMissing } from "@/components/recipes/add-missing";
+import { SourceLabel } from "@/components/recipes/source-label";
 import { AddToList } from "@/components/scrap/add-to-list";
 import { Card, Label, Page } from "@/components/scrap/paper";
 import { PlanLimit } from "@/components/scrap/plan-limit";
@@ -17,6 +19,7 @@ import { useStartCook } from "@/lib/cook";
 import { amount } from "@/lib/format";
 import { useSaved, useToggleSaved } from "@/lib/list";
 import { useAdaptation, useMe, useRecipe } from "@/lib/queries";
+import { useSetMachine, useShare, useStartEdit } from "@/lib/recipes";
 import { useT } from "@/lib/use-t";
 import { cn } from "@/lib/utils";
 
@@ -47,6 +50,9 @@ function Recipe({
   const start = useStartCook();
   const saved = useSaved(householdId);
   const toggleSaved = useToggleSaved(householdId);
+  const share = useShare(householdId, recipe.recipe_id);
+  const edit = useStartEdit();
+  const machine = useSetMachine(householdId);
   const isSaved = saved.data?.some((r) => r.recipe_id === recipe.recipe_id) ?? false;
   const fitted = adaptation.data;
   const set = (patch: Partial<AdaptationControls>) =>
@@ -99,6 +105,66 @@ function Recipe({
         </Text>
         <Text>{recipe.description}</Text>
       </View>
+      <View className="flex-row flex-wrap items-center gap-2">
+        <SourceLabel source={recipe.source} />
+        {recipe.sharing ? (
+          <Text variant="small">
+            {t(
+              recipe.sharing === "shared"
+                ? "recipe.shared"
+                : recipe.sharing === "removed"
+                  ? "recipe.removed"
+                  : "recipe.private",
+            )}
+          </Text>
+        ) : null}
+      </View>
+      {recipe.sharing ? (
+        <View className="flex-row flex-wrap gap-2">
+          {recipe.sharing === "removed" ? null : (
+            <Button
+              variant="paper"
+              size="sm"
+              className="self-start"
+              disabled={share.isPending}
+              onPress={() => share.mutate(recipe.sharing !== "shared")}
+            >
+              <Text>{recipe.sharing === "shared" ? t("recipe.unshare") : t("recipe.share")}</Text>
+            </Button>
+          )}
+          <Button
+            variant="paper"
+            size="sm"
+            className="self-start"
+            disabled={edit.isPending}
+            onPress={() =>
+              edit.mutate(recipe.recipe_id, {
+                onSuccess: ({ import_id }) => router.push(`/import/${import_id}`),
+              })
+            }
+          >
+            <Text>{t("recipe.edit")}</Text>
+          </Button>
+        </View>
+      ) : null}
+      {share.isError || edit.isError ? (
+        <Text className="font-medium text-sm text-tomato">{t("common.error")}</Text>
+      ) : null}
+      {recipe.has_device_variant && !hasDevice ? (
+        <Card tilt={0.6} className="gap-2 bg-mustard">
+          <Text variant="heading">{t("recipe.machine.title")}</Text>
+          <Text>{t("recipe.machine.body")}</Text>
+          <Button
+            variant="paper"
+            size="sm"
+            className="self-start"
+            disabled={machine.isPending}
+            onPress={() => machine.mutate(true)}
+          >
+            <Text>{t("recipe.machine.yes")}</Text>
+          </Button>
+        </Card>
+      ) : null}
       <Chip
         label={isSaved ? t("saved.saved") : t("saved.save")}
         selected={isSaved}
@@ -255,6 +321,14 @@ function Recipe({
           );
         })}
       </Card>
+
+      {fitted ? (
+        <AddMissing
+          householdId={householdId}
+          recipeId={recipe.recipe_id}
+          adaptationId={fitted.adaptation_id}
+        />
+      ) : null}
 
       <Card tilt={-0.4} className="gap-4">
         <Label className="bg-sage">

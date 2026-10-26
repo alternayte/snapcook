@@ -15,6 +15,7 @@ import {
   useProfile,
   useSaveProfile,
 } from "@/lib/queries";
+import { useSetMachine } from "@/lib/recipes";
 import { useT } from "@/lib/use-t";
 
 function NameHousehold() {
@@ -81,6 +82,41 @@ function NameHousehold() {
   );
 }
 
+/** One question on its own: whether the household has the machine, so recipes can use it. */
+function MachineQuestion({ householdId, onAnswer }: { householdId: string; onAnswer: () => void }) {
+  const t = useT();
+  const machine = useSetMachine(householdId);
+  const answer = (has: boolean) => machine.mutate(has, { onSuccess: onAnswer });
+  return (
+    <Page>
+      <View className="h-24">
+        <Sticker
+          name="spoon"
+          size={96}
+          angle={12}
+          delay={150}
+          style={{ position: "absolute", right: 8, top: 0 }}
+        />
+      </View>
+      <View className="gap-1">
+        <Text variant="display">{t("onboarding.machine.title")}</Text>
+        <Text variant="hand" style={{ transform: [{ rotate: "-2deg" }] }}>
+          {t("onboarding.machine.note")}
+        </Text>
+      </View>
+      <Button disabled={machine.isPending} onPress={() => answer(true)}>
+        <Text>{t("onboarding.machine.yes")}</Text>
+      </Button>
+      <Button variant="paper" disabled={machine.isPending} onPress={() => answer(false)}>
+        <Text>{t("onboarding.machine.no")}</Text>
+      </Button>
+      {machine.isError ? (
+        <Text className="font-medium text-sm text-tomato">{t("common.error")}</Text>
+      ) : null}
+    </Page>
+  );
+}
+
 function FirstProfile({ householdId }: { householdId: string }) {
   const t = useT();
   const router = useRouter();
@@ -116,10 +152,16 @@ export default function Onboarding() {
   const me = useMe();
   // The household exists from the first step on, so its id decides which step shows.
   const [startedWithout] = useState(() => me.data?.household == null);
+  const [askedMachine, setAskedMachine] = useState(false);
   if (me.isPending) return <Loading />;
   if (me.isError) return <Failed onRetry={() => me.refetch()} />;
   if (!me.data) return <Redirect href="/sign-in" />;
   if (!me.data.household) return <NameHousehold />;
   if (!startedWithout) return <Redirect href="/(tabs)/pantry" />;
+  if (!askedMachine) {
+    return (
+      <MachineQuestion householdId={me.data.household.id} onAnswer={() => setAskedMachine(true)} />
+    );
+  }
   return <FirstProfile householdId={me.data.household.id} />;
 }

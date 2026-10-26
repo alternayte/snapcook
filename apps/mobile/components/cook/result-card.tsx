@@ -2,6 +2,7 @@ import type { SuggestionCard } from "@snapcook/schema";
 import { Image } from "expo-image";
 import { Link } from "expo-router";
 import { Pressable, View } from "react-native";
+import { SourceLabel } from "@/components/recipes/source-label";
 import { Card, Label } from "@/components/scrap/paper";
 import { Text } from "@/components/ui/text";
 import { API_URL } from "@/lib/auth";
@@ -47,6 +48,7 @@ export function ResultCard({ card, names, index }: Props) {
               })}
             </Text>
             <View className="flex-row flex-wrap items-center gap-2">
+              <SourceLabel source={card.source} />
               <Label className="bg-sage">
                 <Text variant="label">
                   {t("cook.card.have", { have, all: have + card.missing.length })}

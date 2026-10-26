@@ -8,6 +8,7 @@ import {
   JoinHouseholdInput,
   MatchTextInput,
   type Me,
+  ProfileDevices,
   ProfileInput,
 } from "@snapcook/schema";
 import { eq, inArray, or } from "drizzle-orm";
@@ -91,7 +92,7 @@ const MATCH_SYSTEM = [
 const Matched = z.object({ names: z.array(z.string()) });
 
 export function householdRoutes(db: Db, llm: Llm, matcher: IngredientMatcher) {
-  const { ingredients } = schema;
+  const { householdProfiles, ingredients } = schema;
   return new Hono<HouseholdEnv>()
     .get("/household/members", async (c) =>
       c.json({ members: await members(db, c.var.household.id) }),
@@ -156,6 +157,19 @@ export function householdRoutes(db: Db, llm: Llm, matcher: IngredientMatcher) {
         }
         const profile = await replaceProfile(db, c.var.household.id, c.var.user.id, input);
         return c.json({ profile });
+      },
+    )
+    .put(
+      "/household/profile/devices",
+      zValidator("json", ProfileDevices, (result, c) =>
+        result.success ? undefined : fail(c, 400, "validation", "The devices are not valid."),
+      ),
+      async (c) => {
+        await db
+          .update(householdProfiles)
+          .set({ devices: c.req.valid("json") })
+          .where(eq(householdProfiles.household_id, c.var.household.id));
+        return c.body(null, 204);
       },
     )
     .post(
