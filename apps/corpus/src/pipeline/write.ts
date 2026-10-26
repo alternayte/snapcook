@@ -1,3 +1,4 @@
+import type { PipelineConfig } from "@snapcook/authoring";
 import { type Db, schema } from "@snapcook/db";
 import type { Llm } from "@snapcook/llm";
 import {
@@ -8,7 +9,6 @@ import {
   ValidationReport,
 } from "@snapcook/schema";
 import { asc } from "drizzle-orm";
-import type { PipelineConfig } from "./config";
 import { latest, save } from "./store";
 
 export const BASE_SERVINGS = 4;

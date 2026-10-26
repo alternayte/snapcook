@@ -1,7 +1,7 @@
+import type { PipelineConfig } from "@snapcook/authoring";
 import type { Db } from "@snapcook/db";
 import type { Llm } from "@snapcook/llm";
 import { type DishCandidate, ResearchNotes } from "@snapcook/schema";
-import type { PipelineConfig } from "./config";
 import { latest, save } from "./store";
 
 /** Reads reference recipes on the web and stores the consensus. Skips a dish that has notes. */

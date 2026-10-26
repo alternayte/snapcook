@@ -10,7 +10,6 @@ import {
   type ValidationReport,
 } from "@snapcook/schema";
 import type { PipelineConfig } from "./config";
-import { BASE_SERVINGS } from "./write";
 
 type Problem = ValidationReport["problems"][number];
 export type IngredientIndex = Map<string, Ingredient>;
@@ -35,6 +34,7 @@ export function validateDraft(
   dish: Pick<DishCandidate, "primary_protein" | "dish_type">,
   index: IngredientIndex,
   config: Pick<PipelineConfig, "tags" | "bands" | "edible_share">,
+  servings: number,
 ): Problem[] {
   const problems: Problem[] = [];
   const add = (code: string, message: string) => problems.push({ code, message });
@@ -81,11 +81,11 @@ export function validateDraft(
       counted += 1;
     }
     if (counted === 0) continue;
-    const perServing = Math.round(grams / BASE_SERVINGS);
+    const perServing = Math.round(grams / servings);
     if (perServing < band.min_g || perServing > band.max_g) {
       add(
         "quantity_band",
-        `${band.label} is ${perServing} g per serving; the plausible range is ${band.min_g} to ${band.max_g} g. Check the quantities for ${BASE_SERVINGS} servings.`,
+        `${band.label} is ${perServing} g per serving; the plausible range is ${band.min_g} to ${band.max_g} g. Check the quantities for ${servings} servings.`,
       );
     }
   }

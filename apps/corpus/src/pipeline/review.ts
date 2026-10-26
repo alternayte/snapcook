@@ -1,3 +1,4 @@
+import type { PipelineConfig } from "@snapcook/authoring";
 import { type Db, schema } from "@snapcook/db";
 import type { Llm } from "@snapcook/llm";
 import {
@@ -11,7 +12,6 @@ import {
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import type { GridConfig } from "../grid/config";
-import type { PipelineConfig } from "./config";
 import { latest, save } from "./store";
 import { BASE_SERVINGS } from "./write";
 

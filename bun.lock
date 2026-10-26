@@ -34,12 +34,12 @@
         "corpus": "./src/cli.ts",
       },
       "dependencies": {
+        "@snapcook/authoring": "workspace:*",
         "@snapcook/db": "workspace:*",
         "@snapcook/llm": "workspace:*",
         "@snapcook/recognition": "workspace:*",
         "@snapcook/schema": "workspace:*",
         "drizzle-orm": "0.45.4",
-        "sharp": "0.34.5",
         "zod": "4.6.6",
       },
     },
@@ -110,6 +110,17 @@
       },
       "devDependencies": {
         "@snapcook/api": "workspace:*",
+      },
+    },
+    "packages/authoring": {
+      "name": "@snapcook/authoring",
+      "version": "0.0.0",
+      "dependencies": {
+        "@snapcook/db": "workspace:*",
+        "@snapcook/llm": "workspace:*",
+        "@snapcook/schema": "workspace:*",
+        "sharp": "0.34.5",
+        "zod": "4.6.6",
       },
     },
     "packages/db": {
@@ -678,6 +689,8 @@
     "@snapcook/api": ["@snapcook/api@workspace:apps/api"],
 
     "@snapcook/api-client": ["@snapcook/api-client@workspace:packages/api-client"],
+
+    "@snapcook/authoring": ["@snapcook/authoring@workspace:packages/authoring"],
 
     "@snapcook/corpus": ["@snapcook/corpus@workspace:apps/corpus"],
 

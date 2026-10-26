@@ -89,7 +89,8 @@ const good: RecipeDraft = {
   failure_modes: [],
 };
 const dish = { primary_protein: "chicken_thigh", dish_type: "main" };
-const codes = (draft: RecipeDraft) => validateDraft(draft, dish, index, config).map((p) => p.code);
+const codes = (draft: RecipeDraft) =>
+  validateDraft(draft, dish, index, config, 4).map((p) => p.code);
 
 test("a sound draft has no problems, and an alias counts as a known name", () => {
   expect(codes(good)).toEqual([]);
@@ -179,7 +180,7 @@ test("a quantity band applies only to its dish types", () => {
   const thin = { ...good, ingredients: [{ ...chicken, quantity: 160 }] };
   const mains = { ...config, bands: config.bands.map((b) => ({ ...b, dish_types: ["main"] })) };
   const codesFor = (dish_type: string) =>
-    validateDraft(thin, { ...dish, dish_type }, index, mains).map((p) => p.code);
+    validateDraft(thin, { ...dish, dish_type }, index, mains, 4).map((p) => p.code);
   expect(codesFor("main")).toContain("quantity_band");
   expect(codesFor("soup")).not.toContain("quantity_band");
 });
@@ -187,6 +188,8 @@ test("a quantity band applies only to its dish types", () => {
 test("a quantity band counts only the edible share of an ingredient", () => {
   const whole = { ...good, ingredients: [{ ...chicken, quantity: 2000 }] };
   const shares = { ...config, edible_share: { "chicken thigh": 0.4 } };
-  expect(validateDraft(whole, dish, index, config).map((p) => p.code)).toContain("quantity_band");
-  expect(validateDraft(whole, dish, index, shares)).toEqual([]);
+  expect(validateDraft(whole, dish, index, config, 4).map((p) => p.code)).toContain(
+    "quantity_band",
+  );
+  expect(validateDraft(whole, dish, index, shares, 4)).toEqual([]);
 });

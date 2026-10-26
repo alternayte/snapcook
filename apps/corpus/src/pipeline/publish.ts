@@ -1,3 +1,4 @@
+import { type IngredientIndex, profileText, slugify } from "@snapcook/authoring";
 import { type Db, foldName, schema } from "@snapcook/db";
 import type { Llm } from "@snapcook/llm";
 import {
@@ -9,7 +10,6 @@ import {
 } from "@snapcook/schema";
 import { eq, sql } from "drizzle-orm";
 import { latest } from "./store";
-import type { IngredientIndex } from "./validate";
 import { BASE_SERVINGS } from "./write";
 
 const {
@@ -23,39 +23,6 @@ const {
 
 // At or above this cosine, two ingredient profiles are the same dish under two names.
 const DUPLICATE_THRESHOLD = 0.95;
-
-const LETTERS: Record<string, string> = {
-  ı: "i",
-  ø: "o",
-  ß: "ss",
-  đ: "d",
-  ł: "l",
-  æ: "ae",
-  œ: "oe",
-};
-
-export function slugify(name: string) {
-  const slug = name
-    .toLowerCase()
-    .replace(/[ıøßđłæœ]/g, (c) => LETTERS[c] ?? c)
-    .normalize("NFKD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-  if (slug === "") throw new Error(`cannot make a slug from "${name}"`);
-  return slug;
-}
-
-/** The text a recipe is embedded as: what goes in it, how it is cooked, where it is from, how long. */
-export function profileText(
-  draft: RecipeDraft,
-  dish: Pick<DishCandidate, "technique" | "cuisine">,
-) {
-  const names = draft.ingredients
-    .filter((i) => i.role === "core" || i.role === "supporting")
-    .map((i) => i.ingredient);
-  return `${names.join(", ")}; ${dish.technique}; ${dish.cuisine.replaceAll("_", " ")}; ${draft.time_total_min} min`;
-}
 
 /**
  * Turns a reviewed draft into a recipe with one version, its ingredients and its device variant,

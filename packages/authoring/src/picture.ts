@@ -1,4 +1,6 @@
+import type { CallContext, Llm } from "@snapcook/llm";
 import type { DeviceStep, IngredientRole } from "@snapcook/schema";
+import sharp from "sharp";
 import { z } from "zod";
 import type { ImageConfig } from "./config";
 
@@ -65,3 +67,44 @@ export const faultsOf = (check: ImageCheck) => [
   ...check.extras.map((e) => `not in the recipe: ${e}`),
   ...check.defects,
 ];
+
+// One picture, and one more when the check finds a fault in the first.
+const MAX_PICTURES = 2;
+const WIDTH = 1280;
+const CHECK_WIDTH = 768;
+
+/** Draws one picture and has the vision model compare it with the recipe. */
+export async function drawOnce(
+  llm: Llm,
+  config: ImageConfig,
+  recipe: Pictured,
+  faults: string[],
+  ctx: CallContext,
+) {
+  const prompt = imagePrompt(config, recipe, faults);
+  const drawn = await llm.image(prompt, ctx);
+  const small = await sharp(drawn.data).resize({ width: CHECK_WIDTH }).jpeg().toBuffer();
+  const check = await llm.vision(small, "image/jpeg", ImageCheck, checkHint(config, recipe), {
+    ...ctx,
+    endpoint: `${ctx.endpoint}_check`,
+  });
+  const webp = await sharp(drawn.data).resize({ width: WIDTH }).webp({ quality: 82 }).toBuffer();
+  return { prompt, webp, faults: faultsOf(check) };
+}
+
+/**
+ * Draws the picture of a recipe and checks it. A picture with faults is drawn once more with
+ * them named; `webp` is null when the second one fails too.
+ */
+export async function drawPicture(
+  llm: Llm,
+  config: ImageConfig,
+  recipe: Pictured,
+  ctx: CallContext,
+) {
+  let result = await drawOnce(llm, config, recipe, [], ctx);
+  for (let n = 1; n < MAX_PICTURES && result.faults.length > 0; n += 1) {
+    result = await drawOnce(llm, config, recipe, result.faults, ctx);
+  }
+  return { ...result, webp: result.faults.length === 0 ? result.webp : null };
+}

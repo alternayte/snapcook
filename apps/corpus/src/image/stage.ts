@@ -1,23 +1,23 @@
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
+import {
+  drawOnce,
+  drawPicture,
+  loadImageConfig,
+  type Pictured,
+  slugify,
+} from "@snapcook/authoring";
 import { createDb, type Db, migrate, recordLlmCall, schema } from "@snapcook/db";
-import { createOpenRouterLlm, type Llm } from "@snapcook/llm";
+import { createOpenRouterLlm } from "@snapcook/llm";
 import type { DishCandidate } from "@snapcook/schema";
 import { asc, eq } from "drizzle-orm";
-import sharp from "sharp";
-import { slugify } from "../pipeline/publish";
 import { parseSelection } from "../pipeline/stage";
 import { selectedDishes } from "../pipeline/store";
-import { type ImageConfig, loadImageConfig } from "./config";
-import { checkHint, faultsOf, ImageCheck, imagePrompt, type Pictured } from "./prompt";
 
 const { ingredients, recipeImages, recipeIngredients, recipes, recipeVersions } = schema;
 
-// One picture, and one more when the check finds a fault in the first.
-const MAX_PICTURES = 2;
 const STOP_AFTER_FAILURES = 5;
-const WIDTH = 1280;
-const CHECK_WIDTH = 768;
+const CTX = { endpoint: "corpus.image", household_id: null };
 
 async function pictured(db: Db, dish: DishCandidate) {
   if (!dish.recipe_id) return undefined;
@@ -36,19 +36,6 @@ async function pictured(db: Db, dish: DishCandidate) {
   const { id, title, description, dish_type, steps } = row.version;
   const recipe: Pictured = { title, description, dish_type, steps, ingredients: lines };
   return { versionId: id, recipe };
-}
-
-/** Draws one picture and has the vision model compare it with the recipe. */
-async function attempt(llm: Llm, config: ImageConfig, recipe: Pictured, faults: string[]) {
-  const prompt = imagePrompt(config, recipe, faults);
-  const drawn = await llm.image(prompt, { endpoint: "corpus.image", household_id: null });
-  const small = await sharp(drawn.data).resize({ width: CHECK_WIDTH }).jpeg().toBuffer();
-  const check = await llm.vision(small, "image/jpeg", ImageCheck, checkHint(config, recipe), {
-    endpoint: "corpus.image_check",
-    household_id: null,
-  });
-  const webp = await sharp(drawn.data).resize({ width: WIDTH }).webp({ quality: 82 }).toBuffer();
-  return { prompt, webp, faults: faultsOf(check) };
 }
 
 /**
@@ -83,7 +70,7 @@ export async function image(args: string[]) {
     const found = await pictured(db, dish);
     if (!found) return undefined;
     if (preview) {
-      const result = await attempt(llm, config, found.recipe, []);
+      const result = await drawOnce(llm, config, found.recipe, [], CTX);
       await Bun.write(
         join(dir, `${slugify(dish.name)}--${slugify(model ?? "")}.webp`),
         result.webp,
@@ -95,13 +82,10 @@ export async function image(args: string[]) {
       .from(recipeImages)
       .where(eq(recipeImages.recipe_version_id, found.versionId));
     if (existing) return undefined;
-    let result = await attempt(llm, config, found.recipe, []);
-    for (let n = 1; n < MAX_PICTURES && result.faults.length > 0; n += 1) {
-      result = await attempt(llm, config, found.recipe, result.faults);
-    }
-    const passed = result.faults.length === 0;
+    const result = await drawPicture(llm, config, found.recipe, CTX);
+    const passed = result.webp !== null;
     const file = `${found.versionId}.webp`;
-    if (passed) await Bun.write(join(dir, file), result.webp);
+    if (result.webp) await Bun.write(join(dir, file), result.webp);
     await db.insert(recipeImages).values({
       recipe_version_id: found.versionId,
       file: passed ? file : null,

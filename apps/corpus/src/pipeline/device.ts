@@ -1,3 +1,4 @@
+import { type PipelineConfig, writeVariant } from "@snapcook/authoring";
 import type { Db } from "@snapcook/db";
 import type { Llm } from "@snapcook/llm";
 import {
@@ -6,15 +7,10 @@ import {
   type DishCandidate,
   RecipeDraft,
 } from "@snapcook/schema";
-import type { PipelineConfig } from "./config";
 import { latest, save } from "./store";
-import { validateVariant } from "./validate";
 import { BASE_SERVINGS } from "./write";
 
-/**
- * Writes the device variant of the current draft. A variant that breaks a device limit gets one
- * retry with the findings; what is left is for the validate stage to report.
- */
+/** Writes the device variant of the current draft, once per draft. */
 export async function device(
   db: Db,
   llm: Llm,
@@ -27,38 +23,17 @@ export async function device(
   const existing = await latest(db, dish.id, "device", DeviceVariantDraft);
   if (existing?.attempt === draft.attempt) return "skipped";
 
-  const base = [
-    `Dish: ${dish.name} (${dish.cuisine}), ${BASE_SERVINGS} servings.`,
-    "",
-    `Device: ${profile.name}. Capabilities:`,
-    JSON.stringify(profile.capabilities),
-    "",
-    "Generic recipe:",
-    JSON.stringify(draft.value),
-  ];
-  const ask = (extra: string[]) =>
-    llm.structured(
-      { system: config.device.system, prompt: [...base, ...extra].join("\n") },
-      DeviceVariantDraft,
-      {
-        endpoint: "corpus.device",
-        household_id: null,
-        role: "write",
-      },
-    );
-
-  let variant = await ask([]);
-  const problems = validateVariant(variant, profile.capabilities);
-  if (problems.length > 0) {
-    variant = await ask([
-      "",
-      "Your previous variant:",
-      JSON.stringify(variant),
-      "",
-      "It breaks these limits. Fix every one and return the full corrected variant:",
-      ...problems.map((p) => `- ${p.message}`),
-    ]);
-  }
+  const variant = await writeVariant(
+    llm,
+    config.device.system,
+    {
+      dish: `${dish.name} (${dish.cuisine})`,
+      servings: BASE_SERVINGS,
+      recipe: draft.value,
+      profile,
+    },
+    { endpoint: "corpus.device", household_id: null, role: "write" },
+  );
   await save(db, dish.id, "device", variant, draft.attempt);
   return variant.suitability;
 }

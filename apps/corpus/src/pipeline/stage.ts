@@ -1,4 +1,10 @@
 import { join } from "node:path";
+import {
+  indexIngredients,
+  loadPipelineConfig,
+  validateDraft,
+  validateVariant,
+} from "@snapcook/authoring";
 import { createDb, type Db, migrate, recordLlmCall, schema } from "@snapcook/db";
 import { createOpenRouterLlm } from "@snapcook/llm";
 import {
@@ -10,14 +16,12 @@ import {
 } from "@snapcook/schema";
 import { eq } from "drizzle-orm";
 import { loadGridConfig } from "../grid/config";
-import { loadPipelineConfig } from "./config";
 import { device } from "./device";
 import { publish } from "./publish";
 import { research } from "./research";
 import { review } from "./review";
 import { discardDrafts, latest, type Selection, save, selectedDishes } from "./store";
-import { indexIngredients, validateDraft, validateVariant } from "./validate";
-import { ingredientList, write } from "./write";
+import { BASE_SERVINGS, ingredientList, write } from "./write";
 
 export function parseSelection(args: string[]): Selection {
   const selection: Selection = {};
@@ -75,7 +79,7 @@ async function validate(db: Db, ctx: Context, dish: DishCandidate) {
   const existing = await latest(db, dish.id, "validate", ValidationReport);
   if (existing?.attempt === draft.attempt) return "skipped";
   const problems = [
-    ...validateDraft(draft.value, dish, ctx.index, ctx.config),
+    ...validateDraft(draft.value, dish, ctx.index, ctx.config, BASE_SERVINGS),
     ...validateVariant(variant.value, ctx.profile.capabilities),
   ];
   await save(db, dish.id, "validate", { problems }, draft.attempt);
