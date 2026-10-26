@@ -3,6 +3,8 @@ import {
   type AdaptedRecipe,
   Aisle,
   type Deduction,
+  type ImportDraft,
+  ImportStatus,
   DietStyle,
   Effort,
   Location,
@@ -13,6 +15,7 @@ import {
   Plan,
   type ProfileAllergen,
   type ProfileDevices,
+  type RemovedItem,
   type SnapProposal,
   SnapStatus,
   SubscriptionStatus,
@@ -225,10 +228,36 @@ export const cookSessions = pgTable(
     finished_at: timestamptz(),
     current_step: integer().notNull().default(0),
     deductions: jsonb().$type<Deduction[]>(),
+    removed_items: jsonb().$type<RemovedItem[]>(),
     rating: integer(),
     notes: text(),
   },
   (t) => [index("cook_sessions_household_started_idx").on(t.household_id, t.started_at)],
+);
+
+export const recipeImports = pgTable(
+  "recipe_imports",
+  {
+    id: id(),
+    household_id: uuid()
+      .notNull()
+      .references(() => households.id, { onDelete: "cascade" }),
+    user_id: uuid()
+      .notNull()
+      .references(() => users.id),
+    recipe_id: uuid().references(() => recipes.id, { onDelete: "set null" }),
+    status: enumText(ImportStatus).notNull().default("reading"),
+    photos: text().array().notNull().default([]),
+    draft: jsonb().$type<ImportDraft>(),
+    error: text(),
+    cost_usd: usd().notNull().default(0),
+    created_at: createdAt(),
+    updated_at: timestamptz().notNull().defaultNow(),
+  },
+  (t) => [
+    index("recipe_imports_household_created_idx").on(t.household_id, t.created_at),
+    enumCheck("recipe_imports_status_check", t.status, ImportStatus.options),
+  ],
 );
 
 export const savedRecipes = pgTable(

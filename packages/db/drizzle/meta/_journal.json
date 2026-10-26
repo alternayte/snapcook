@@ -71,6 +71,13 @@
       "when": 1791790248143,
       "tag": "0009_ingredient_contains",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793051629395,
+      "tag": "0010_community_recipes",
+      "breakpoints": true
     }
   ]
 }

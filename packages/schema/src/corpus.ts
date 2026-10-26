@@ -30,6 +30,10 @@ export const Ingredient = z.object({
   ml_per_unit: z.number().positive().nullable(),
   is_staple_default: z.boolean(),
   embedding: Embedding.nullable(),
+  /** False for an ingredient an import added, until a person has checked its flags. */
+  reviewed: z.boolean(),
+  /** The import that added this ingredient, when one did. */
+  added_by_import_id: Id.nullable(),
 });
 export type Ingredient = z.infer<typeof Ingredient>;
 
@@ -79,6 +83,12 @@ export const Recipe = z.object({
   slug: z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/),
   status: RecipeStatus,
   current_version_id: Id.nullable(),
+  /** The household that imported this recipe. Null for an official recipe. */
+  household_id: Id.nullable(),
+  /** When the household shared it with every household. Null while it is private. */
+  shared_at: z.date().nullable(),
+  /** When the admin took it off the community list. The household keeps it. */
+  removed_at: z.date().nullable(),
 });
 export type Recipe = z.infer<typeof Recipe>;
 

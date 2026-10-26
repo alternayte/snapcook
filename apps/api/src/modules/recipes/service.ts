@@ -23,6 +23,7 @@ import {
   type RecipeFacts,
   sourceDraft,
 } from "./adapt";
+import { sharingOf, sourceOf, visibleTo } from "./visibility";
 
 const {
   adaptations,
@@ -37,7 +38,6 @@ const {
   recipeVersions,
 } = schema;
 
-const SERVABLE = ["auto_reviewed", "human_reviewed", "test_cooked"] as const;
 // The first answer, and one more try with the faults named.
 const MAX_TRIES = 2;
 
@@ -47,9 +47,14 @@ export class AdaptationRefused extends Error {
   }
 }
 
-async function versionRow(db: Db, where: { recipeId: string } | { versionId: string }) {
+async function versionRow(
+  db: Db,
+  householdId: string,
+  where: { recipeId: string } | { versionId: string },
+) {
   const [row] = await db
     .select({
+      recipe: recipes,
       version: recipeVersions,
       suitability: recipeDeviceVariants.suitability,
       deviceSteps: recipeDeviceVariants.steps,
@@ -61,7 +66,7 @@ async function versionRow(db: Db, where: { recipeId: string } | { versionId: str
     .leftJoin(recipeImages, eq(recipeImages.recipe_version_id, recipeVersions.id))
     .where(
       and(
-        inArray(recipes.status, [...SERVABLE]),
+        visibleTo(householdId),
         "recipeId" in where
           ? eq(recipes.id, where.recipeId)
           : eq(recipeVersions.id, where.versionId),
@@ -85,9 +90,13 @@ async function versionRow(db: Db, where: { recipeId: string } | { versionId: str
   return { ...row, lines, deviceSteps: suits ? row.deviceSteps : null };
 }
 
-/** The recipe as written, for any signed-in household. */
-export async function recipeView(db: Db, recipeId: string): Promise<RecipeView | undefined> {
-  const row = await versionRow(db, { recipeId });
+/** The recipe as written, for a household that may see it. */
+export async function recipeView(
+  db: Db,
+  householdId: string,
+  recipeId: string,
+): Promise<RecipeView | undefined> {
+  const row = await versionRow(db, householdId, { recipeId });
   if (!row) return undefined;
   const { version } = row;
   return {
@@ -102,6 +111,8 @@ export async function recipeView(db: Db, recipeId: string): Promise<RecipeView |
     base_servings: version.base_servings,
     image: row.image,
     has_device_variant: row.deviceSteps !== null,
+    source: sourceOf(row.recipe, householdId),
+    sharing: sharingOf(row.recipe, householdId),
     ingredients: row.lines,
     steps: version.steps,
   };
@@ -119,7 +130,7 @@ export async function adapt(
   profile: HouseholdProfile,
   request: AdaptRequest,
 ): Promise<AdaptResponse | undefined> {
-  const row = await versionRow(db, { versionId: request.recipe_version_id });
+  const row = await versionRow(db, household.id, { versionId: request.recipe_version_id });
   if (!row) return undefined;
 
   const lineIds = row.lines.map((l) => l.ingredient_id);

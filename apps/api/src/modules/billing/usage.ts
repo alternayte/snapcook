@@ -113,7 +113,7 @@ export async function entitlements(
   at = new Date(),
 ): Promise<Entitlements> {
   const plan = PLANS[household.plan];
-  const meterState = async (meter: "snaps" | "suggestions") => ({
+  const meterState = async (meter: "snaps" | "suggestions" | "imports") => ({
     limit: plan.meters[meter],
     used: await used(db, household.id, meter, at),
     resets_at: resetsAt(meter, at),
@@ -122,6 +122,7 @@ export async function entitlements(
     plan: household.plan,
     snaps: await meterState("snaps"),
     suggestions: await meterState("suggestions"),
+    imports: await meterState("imports"),
     members: { limit: plan.members, used: await memberCount(db, household.id) },
     saved: { limit: plan.saved, used: await savedCount(db, household.id) },
     adaptation_controls: plan.adaptationControls,

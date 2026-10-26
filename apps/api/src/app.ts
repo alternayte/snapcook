@@ -48,6 +48,7 @@ const IMAGE_NAME = /^[0-9a-f-]{36}\.webp$/;
 export function createApp(deps: AppDeps) {
   const { db, auth, llm, corsOrigins, imageDir, ownerEmails } = deps;
   const matcher = deps.matcher ?? createIngredientMatcher(db);
+  const corpus = createCorpusReader(db);
 
   const session = createMiddleware<SessionEnv>(async (c, next) => {
     const found = await auth.api.getSession({ headers: c.req.raw.headers });
@@ -78,8 +79,8 @@ export function createApp(deps: AppDeps) {
     .route("/", snapRoutes({ db, ...deps.snaps }))
     .route("/", cookRoutes(db, llm))
     .route("/", listRoutes(db, matcher))
-    .route("/", recipeRoutes({ db, llm, model: deps.adaptModel }))
-    .route("/", suggestionRoutes({ db, llm, corpus: createCorpusReader(db) }));
+    .route("/", recipeRoutes({ db, llm, model: deps.adaptModel, corpus }))
+    .route("/", suggestionRoutes({ db, llm, corpus }));
 
   return new Hono()
     .basePath("/api/v1")

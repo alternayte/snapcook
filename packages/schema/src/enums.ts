@@ -58,7 +58,7 @@ export type PantrySource = z.infer<typeof PantrySource>;
 export const SnapStatus = z.enum(["queued", "done", "failed"]);
 export type SnapStatus = z.infer<typeof SnapStatus>;
 
-export const Meter = z.enum(["snaps", "suggestions", "adaptations", "rescues"]);
+export const Meter = z.enum(["snaps", "suggestions", "adaptations", "rescues", "imports"]);
 export type Meter = z.infer<typeof Meter>;
 
 export const Aisle = z.enum(["produce", "meat_fish", "dairy", "pantry", "frozen", "other"]);
@@ -124,6 +124,14 @@ export type SubscriptionStatus = z.infer<typeof SubscriptionStatus>;
 
 export const CandidateStatus = z.enum(["proposed", "kept", "dropped"]);
 export type CandidateStatus = z.infer<typeof CandidateStatus>;
+
+/** Who wrote a recipe: the app, another household that shared it, or this household. */
+export const RecipeSource = z.enum(["official", "community", "household"]);
+export type RecipeSource = z.infer<typeof RecipeSource>;
+
+/** Where an import is: being read, waiting for the household's check, being saved, or ended. */
+export const ImportStatus = z.enum(["reading", "checking", "saving", "done", "failed"]);
+export type ImportStatus = z.infer<typeof ImportStatus>;
 
 export const DeviceProfileId = z.enum(["mc_smart"]);
 export type DeviceProfileId = z.infer<typeof DeviceProfileId>;

@@ -13,7 +13,16 @@ import { z } from "zod";
 import { allowanceExceeded, fail, type HouseholdEnv } from "../../http";
 import { AllowanceUsedUp } from "../billing/usage";
 import { profileOf } from "../household/service";
-import { cookHistory, cookView, finishCook, rescue, setStep, startCook } from "./service";
+import {
+  cookHistory,
+  cookView,
+  finishCook,
+  removeCook,
+  rescue,
+  restoreList,
+  setStep,
+  startCook,
+} from "./service";
 
 export function cookRoutes(db: Db, llm: Llm) {
   const idParam = zValidator("param", z.object({ id: Id }), (result, c) =>
@@ -40,6 +49,26 @@ export function cookRoutes(db: Db, llm: Llm) {
       const cook = await cookView(db, c.var.household.id, c.req.valid("param").id);
       return cook ? c.json(cook) : missing(c);
     })
+    .get("/cooks/:id/restore", idParam, async (c) => {
+      const lines = await restoreList(db, c.var.household.id, c.req.valid("param").id);
+      return lines ? c.json({ lines }) : missing(c);
+    })
+    .delete(
+      "/cooks/:id",
+      idParam,
+      zValidator("query", z.object({ restore: z.stringbool().default(true) }), (result, c) =>
+        result.success ? undefined : fail(c, 400, "validation", "The request is not valid."),
+      ),
+      async (c) => {
+        const removed = await removeCook(
+          db,
+          c.var.household.id,
+          c.req.valid("param").id,
+          c.req.valid("query").restore,
+        );
+        return removed ? c.body(null, 204) : missing(c);
+      },
+    )
     .patch("/cooks/:id", idParam, body(CookProgressInput), async (c) => {
       const moved = await setStep(
         db,

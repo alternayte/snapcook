@@ -61,6 +61,7 @@ export const Entitlements = z.object({
   plan: Plan,
   snaps: Allowance.extend({ resets_at: z.date() }),
   suggestions: Allowance.extend({ resets_at: z.date() }),
+  imports: Allowance.extend({ resets_at: z.date() }),
   members: Allowance.extend({ limit: z.number().int() }),
   saved: Allowance,
   adaptation_controls: z.boolean(),

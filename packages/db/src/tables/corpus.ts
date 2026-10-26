@@ -31,8 +31,8 @@ import {
   uuid,
   vector,
 } from "drizzle-orm/pg-core";
-import { createdAt, enumCheck, enumText, id, quantity } from "../columns";
-import { households } from "./household";
+import { createdAt, enumCheck, enumText, id, quantity, timestamptz } from "../columns";
+import { households, recipeImports } from "./household";
 
 const embedding = () => vector({ dimensions: EMBEDDING_DIMENSIONS });
 
@@ -50,6 +50,10 @@ export const ingredients = pgTable(
     ml_per_unit: numeric({ precision: 10, scale: 2, mode: "number" }),
     is_staple_default: boolean().notNull().default(false),
     embedding: embedding(),
+    reviewed: boolean().notNull().default(true),
+    added_by_import_id: uuid().references((): AnyPgColumn => recipeImports.id, {
+      onDelete: "set null",
+    }),
   },
   (t) => [
     index("ingredients_embedding_idx").using("hnsw", t.embedding.op("vector_cosine_ops")),
@@ -83,8 +87,14 @@ export const recipes = pgTable(
     slug: text().notNull().unique(),
     status: enumText(RecipeStatus).notNull().default("draft"),
     current_version_id: uuid().references((): AnyPgColumn => recipeVersions.id),
+    household_id: uuid().references(() => households.id, { onDelete: "cascade" }),
+    shared_at: timestamptz(),
+    removed_at: timestamptz(),
   },
-  (t) => [enumCheck("recipes_status_check", t.status, RecipeStatus.options)],
+  (t) => [
+    enumCheck("recipes_status_check", t.status, RecipeStatus.options),
+    index("recipes_household_idx").on(t.household_id),
+  ],
 );
 
 export const recipeVersions = pgTable(

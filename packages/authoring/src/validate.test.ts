@@ -24,6 +24,8 @@ const ingredient = (
   ml_per_unit: null,
   is_staple_default: false,
   embedding: null,
+  reviewed: true,
+  added_by_import_id: null,
   ...over,
 });
 

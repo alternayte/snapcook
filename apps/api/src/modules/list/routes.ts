@@ -2,6 +2,7 @@ import { zValidator } from "@hono/zod-validator";
 import { type Db, schema } from "@snapcook/db";
 import type { IngredientMatcher } from "@snapcook/recognition";
 import {
+  AddMissingInput,
   Aisle,
   Id,
   ListAddInput,
@@ -16,21 +17,24 @@ import { z } from "zod";
 import { allowanceExceeded, fail, type HouseholdEnv, unchanged } from "../../http";
 import { PLANS } from "../billing/plans";
 import { savedCount } from "../billing/usage";
+import { profileOf } from "../household/service";
 import { mergeInto, sumAmounts } from "../pantry/merge";
 import { parseEntry } from "../pantry/parse";
+import { visibleTo } from "../recipes/visibility";
 import { aisleFor } from "./aisle";
+import { type Need, shortfalls } from "./missing";
 
 const {
+  adaptations,
   ingredients,
   pantryItems,
+  recipeIngredients,
   recipeImages,
   recipes,
   recipeVersions,
   savedRecipes,
   shoppingItems,
 } = schema;
-
-const SERVABLE = ["auto_reviewed", "human_reviewed", "test_cooked"] as const;
 
 type Line = {
   ingredient_id: string | null;
@@ -93,6 +97,108 @@ export function listRoutes(db: Db, matcher: IngredientMatcher) {
     return { items, recipes: Object.fromEntries(titles.map((t) => [t.id, t.title])) };
   }
 
+  /** Adds lines to the list. A line for an ingredient already on it and not bought adds to it. */
+  async function addLines(householdId: string, lines: Line[]) {
+    await db.transaction(async (tx) => {
+      for (const line of lines) {
+        const [open] = line.ingredient_id
+          ? await tx
+              .select()
+              .from(shoppingItems)
+              .where(
+                and(
+                  eq(shoppingItems.household_id, householdId),
+                  eq(shoppingItems.ingredient_id, line.ingredient_id),
+                  eq(shoppingItems.bought, false),
+                ),
+              )
+              .for("update")
+          : [];
+        const wanted = line.recipe_id ? [line.recipe_id] : [];
+        if (open) {
+          await tx
+            .update(shoppingItems)
+            .set({
+              ...(await sumAmounts(tx, line.ingredient_id, open, line)),
+              wanted_by: [...new Set([...open.wanted_by, ...wanted])],
+            })
+            .where(eq(shoppingItems.id, open.id));
+          continue;
+        }
+        const [known] = line.ingredient_id
+          ? await tx
+              .select({ name: ingredients.name, category: ingredients.category })
+              .from(ingredients)
+              .where(eq(ingredients.id, line.ingredient_id))
+          : [];
+        await tx.insert(shoppingItems).values({
+          household_id: householdId,
+          ingredient_id: known ? line.ingredient_id : null,
+          display_name: line.display_name,
+          quantity: line.quantity,
+          unit: line.unit,
+          aisle: aisleFor(known),
+          wanted_by: wanted,
+        });
+      }
+    });
+  }
+
+  /** What a recipe needs: the fitted amounts when there is an adaptation, else the recipe's own. */
+  async function needsOf(householdId: string, recipeId: string, adaptationId?: string) {
+    const [recipe] = await db
+      .select({ version_id: recipes.current_version_id, base: recipeVersions.base_servings })
+      .from(recipes)
+      .innerJoin(recipeVersions, eq(recipeVersions.id, recipes.current_version_id))
+      .where(and(eq(recipes.id, recipeId), visibleTo(householdId)));
+    if (!recipe?.version_id) return undefined;
+    if (adaptationId) {
+      const [adapted] = await db
+        .select({ output: adaptations.output, version_id: adaptations.recipe_version_id })
+        .from(adaptations)
+        .where(and(eq(adaptations.id, adaptationId), eq(adaptations.household_id, householdId)));
+      if (!adapted) return undefined;
+      const lines = adapted.output.ingredients.filter((line) => line.status !== "substituted");
+      const named = await namesOf(lines.map((line) => line.ingredient_id));
+      return lines.map(
+        (line): Need => ({
+          ingredient_id: line.ingredient_id,
+          name: named.get(line.ingredient_id) ?? line.display,
+          quantity: line.quantity,
+          unit: line.unit,
+          staple: line.status === "staple",
+        }),
+      );
+    }
+    const profile = await profileOf(db, householdId);
+    const scale = (profile?.default_servings ?? recipe.base) / recipe.base;
+    const lines = await db
+      .select({ line: recipeIngredients, name: ingredients.name })
+      .from(recipeIngredients)
+      .innerJoin(ingredients, eq(ingredients.id, recipeIngredients.ingredient_id))
+      .where(eq(recipeIngredients.recipe_version_id, recipe.version_id));
+    return lines
+      .filter(({ line }) => line.role !== "optional")
+      .map(
+        ({ line, name }): Need => ({
+          ingredient_id: line.ingredient_id,
+          name,
+          quantity: line.quantity === null ? null : line.quantity * scale,
+          unit: line.unit,
+          staple: line.role === "staple",
+        }),
+      );
+  }
+
+  async function namesOf(ids: string[]) {
+    if (ids.length === 0) return new Map<string, string>();
+    const rows = await db
+      .select({ id: ingredients.id, name: ingredients.name })
+      .from(ingredients)
+      .where(inArray(ingredients.id, ids));
+    return new Map(rows.map((row) => [row.id, row.name]));
+  }
+
   return new Hono<HouseholdEnv>()
     .get("/list", async (c) => {
       if (unchanged(c, c.var.household.list_rev)) return c.body(null, 304);
@@ -103,51 +209,46 @@ export function listRoutes(db: Db, matcher: IngredientMatcher) {
       const lines = await Promise.all(
         c.req.valid("json").items.map((item) => toLine(item, matcher)),
       );
-      await db.transaction(async (tx) => {
-        for (const line of lines) {
-          // A line for the same ingredient that is not yet bought takes the new amount as well.
-          const [open] = line.ingredient_id
-            ? await tx
-                .select()
-                .from(shoppingItems)
-                .where(
-                  and(
-                    eq(shoppingItems.household_id, householdId),
-                    eq(shoppingItems.ingredient_id, line.ingredient_id),
-                    eq(shoppingItems.bought, false),
-                  ),
-                )
-                .for("update")
-            : [];
-          const wanted = line.recipe_id ? [line.recipe_id] : [];
-          if (open) {
-            await tx
-              .update(shoppingItems)
-              .set({
-                ...(await sumAmounts(tx, line.ingredient_id, open, line)),
-                wanted_by: [...new Set([...open.wanted_by, ...wanted])],
-              })
-              .where(eq(shoppingItems.id, open.id));
-            continue;
-          }
-          const [known] = line.ingredient_id
-            ? await tx
-                .select({ name: ingredients.name, category: ingredients.category })
-                .from(ingredients)
-                .where(eq(ingredients.id, line.ingredient_id))
-            : [];
-          await tx.insert(shoppingItems).values({
-            household_id: householdId,
-            ingredient_id: known ? line.ingredient_id : null,
-            display_name: line.display_name,
-            quantity: line.quantity,
-            unit: line.unit,
-            aisle: aisleFor(known),
-            wanted_by: wanted,
-          });
-        }
-      });
+      await addLines(householdId, lines);
       return c.json(await list(householdId), 201);
+    })
+    .post("/list/missing", body(AddMissingInput), async (c) => {
+      const householdId = c.var.household.id;
+      const { recipe_id, adaptation_id } = c.req.valid("json");
+      const needs = await needsOf(householdId, recipe_id, adaptation_id);
+      if (!needs) return fail(c, 404, "not_found", "No such recipe.");
+      const ids = needs.map((need) => need.ingredient_id);
+      const pantry =
+        ids.length === 0
+          ? []
+          : await db
+              .select()
+              .from(pantryItems)
+              .where(
+                and(
+                  eq(pantryItems.household_id, householdId),
+                  inArray(pantryItems.ingredient_id, ids),
+                ),
+              );
+      const facts =
+        ids.length === 0
+          ? []
+          : await db
+              .select({
+                id: ingredients.id,
+                grams_per_unit: ingredients.grams_per_unit,
+                ml_per_unit: ingredients.ml_per_unit,
+              })
+              .from(ingredients)
+              .where(inArray(ingredients.id, ids));
+      const short = shortfalls(needs, pantry, new Map(facts.map((f) => [f.id, f])));
+      if (short.length > 0) {
+        await addLines(
+          householdId,
+          short.map((line) => ({ ...line, recipe_id })),
+        );
+      }
+      return c.json({ added: short.length, ...(await list(householdId)) }, 201);
     })
     .patch("/list/items/:id", idParam, body(ListPatch), async (c) => {
       const [item] = await db
@@ -232,7 +333,9 @@ export function listRoutes(db: Db, matcher: IngredientMatcher) {
         .innerJoin(recipes, eq(recipes.id, savedRecipes.recipe_id))
         .innerJoin(recipeVersions, eq(recipeVersions.id, recipes.current_version_id))
         .leftJoin(recipeImages, eq(recipeImages.recipe_version_id, recipeVersions.id))
-        .where(eq(savedRecipes.household_id, c.var.household.id))
+        .where(
+          and(eq(savedRecipes.household_id, c.var.household.id), visibleTo(c.var.household.id)),
+        )
         .orderBy(desc(savedRecipes.saved_at));
       return c.json({ saved });
     })
@@ -241,7 +344,7 @@ export function listRoutes(db: Db, matcher: IngredientMatcher) {
       const [recipe] = await db
         .select({ id: recipes.id })
         .from(recipes)
-        .where(and(eq(recipes.id, recipeId), inArray(recipes.status, [...SERVABLE])));
+        .where(and(eq(recipes.id, recipeId), visibleTo(c.var.household.id)));
       if (!recipe) return fail(c, 404, "not_found", "No such recipe.");
       const limit = PLANS[c.var.household.plan].saved;
       const [kept] = await db

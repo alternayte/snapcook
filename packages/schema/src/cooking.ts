@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { DeviceStep } from "./corpus";
-import { DeviceProfileId, Effort, Id, Quantity, Unit } from "./enums";
+import { DeviceProfileId, Effort, Id, Location, Quantity, RecipeSource, Unit } from "./enums";
 
 export const SuggestRequest = z.object({
   time_budget_min: z.number().int().positive(),
@@ -9,6 +9,8 @@ export const SuggestRequest = z.object({
   use_up: z.array(Id),
   craving: z.string().nullable(),
   mc_only: z.boolean(),
+  /** Leaves community recipes out. Runs stored before this existed have none. */
+  official_only: z.boolean().optional(),
 });
 export type SuggestRequest = z.infer<typeof SuggestRequest>;
 
@@ -52,6 +54,19 @@ export type AdaptationControls = z.infer<typeof AdaptationControls>;
 
 export const Deduction = z.object({ pantry_item_id: Id, quantity: Quantity, unit: Unit });
 export type Deduction = z.infer<typeof Deduction>;
+
+/** A pantry item as it was before a cook used it up, so removing the cook can put it back. */
+export const RemovedItem = z.object({
+  id: Id,
+  ingredient_id: Id.nullable(),
+  display_name: z.string().min(1),
+  quantity: Quantity.nullable(),
+  unit: Unit.nullable(),
+  location: Location,
+  use_soon: z.boolean(),
+  expires_on: z.iso.date().nullable(),
+});
+export type RemovedItem = z.infer<typeof RemovedItem>;
 
 export const AdaptedIngredient = z.object({
   ingredient_id: Id,
@@ -97,6 +112,8 @@ export const CookSession = z.object({
   finished_at: z.date().nullable(),
   current_step: z.number().int().nonnegative(),
   deductions: z.array(Deduction).nullable(),
+  /** Pantry items the finish removed, as they were before. */
+  removed_items: z.array(RemovedItem).nullable(),
   rating: z.number().int().min(1).max(5).nullable(),
   notes: z.string().nullable(),
 });
@@ -117,6 +134,7 @@ export const SuggestionCard = SuggestionResult.extend({
   time_active_min: z.number().int(),
   difficulty: z.number().int(),
   has_device_variant: z.boolean(),
+  source: RecipeSource,
   /** File name of the dish picture, or null when the recipe has none. */
   image: z.string().nullable(),
   /** Ingredients the household would rather not eat that this dish uses. */
@@ -130,6 +148,7 @@ export const NearMiss = z.object({
   recipe_id: Id,
   title: z.string(),
   image: z.string().nullable(),
+  source: RecipeSource,
   missing_core: z.array(Id),
 });
 export type NearMiss = z.infer<typeof NearMiss>;
@@ -159,6 +178,9 @@ export const RecipeView = z.object({
   image: z.string().nullable(),
   /** True when the dish has steps for the device. */
   has_device_variant: z.boolean(),
+  source: RecipeSource,
+  /** For this household's own recipe: private, shared, or removed from the community list. */
+  sharing: z.enum(["private", "shared", "removed"]).nullable(),
   ingredients: z.array(
     z.object({
       ingredient_id: Id,

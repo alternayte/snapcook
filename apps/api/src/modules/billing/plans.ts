@@ -19,11 +19,12 @@ export const PERIOD: Record<Meter, "day" | "month"> = {
   suggestions: "day",
   adaptations: "month",
   rescues: "month",
+  imports: "month",
 };
 
 const PAID: Limits = {
   // A paid household has no stated limit. The snap figure is a fair-use ceiling.
-  meters: { snaps: 300, suggestions: null, adaptations: null, rescues: null },
+  meters: { snaps: 300, suggestions: null, adaptations: null, rescues: null, imports: 30 },
   members: 5,
   saved: null,
   adaptationControls: true,
@@ -33,7 +34,7 @@ const PAID: Limits = {
 /** Everything a plan allows. A change of allowance is an edit here and nowhere else. */
 export const PLANS: Record<Plan, Limits> = {
   free: {
-    meters: { snaps: 10, suggestions: 3, adaptations: null, rescues: null },
+    meters: { snaps: 10, suggestions: 3, adaptations: null, rescues: null, imports: 3 },
     members: 2,
     saved: 20,
     adaptationControls: false,
@@ -41,5 +42,5 @@ export const PLANS: Record<Plan, Limits> = {
   },
   pro: PAID,
   // The launch household and friends: paid allowances with no billing and no cost stop.
-  owner: { ...PAID, monthlyCostUsd: null },
+  owner: { ...PAID, meters: { ...PAID.meters, imports: null }, monthlyCostUsd: null },
 };

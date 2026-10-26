@@ -7,5 +7,6 @@ export * from "./enums";
 export * from "./household";
 export * from "./pantry";
 export * from "./pipeline";
+export * from "./recipes";
 export * from "./seed";
 export * from "./units";

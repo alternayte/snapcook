@@ -23,6 +23,7 @@ export const parity: {
   suggestionRuns: Same<Row<"suggestionRuns">, S.SuggestionRun>;
   adaptations: Same<Row<"adaptations">, S.Adaptation>;
   cookSessions: Same<Row<"cookSessions">, S.CookSession>;
+  recipeImports: Same<Row<"recipeImports">, S.RecipeImport>;
   savedRecipes: Same<Row<"savedRecipes">, S.SavedRecipe>;
   shoppingItems: Same<Row<"shoppingItems">, S.ShoppingItem>;
   usageCounters: Same<Row<"usageCounters">, S.UsageCounter>;
@@ -54,6 +55,7 @@ export const parity: {
   suggestionRuns: true,
   adaptations: true,
   cookSessions: true,
+  recipeImports: true,
   savedRecipes: true,
   shoppingItems: true,
   usageCounters: true,

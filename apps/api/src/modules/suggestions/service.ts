@@ -5,12 +5,14 @@ import type {
   HouseholdProfile,
   NearMiss,
   PantrySnapshotLine,
+  Recipe,
   SuggestInput,
   SuggestionCard,
   SuggestRequest,
   SuggestResponse,
 } from "@snapcook/schema";
 import { and, eq, inArray, isNotNull } from "drizzle-orm";
+import { canSee, SERVABLE, sourceOf } from "../recipes/visibility";
 import { type Corpus, type CorpusRecipe, pickVaried, rank, type Scored } from "./rank";
 
 const {
@@ -31,13 +33,29 @@ const FEW_RESULTS = 3;
 const NEAR_SHOWN = 2;
 // The corpus changes only when a batch is published, so one read serves many requests.
 const CORPUS_TTL_MS = 60 * 1000;
-const SERVABLE = ["auto_reviewed", "human_reviewed", "test_cooked"] as const;
 
 type Display = Pick<
   SuggestionCard,
   "recipe_id" | "title" | "cuisine" | "time_total_min" | "time_active_min" | "difficulty" | "image"
 >;
-type Loaded = Corpus & { display: Map<string, Display> };
+type Owner = Pick<Recipe, "household_id" | "shared_at" | "removed_at">;
+export type Loaded = Corpus & {
+  display: Map<string, Display>;
+  /** Who owns each recipe version, to decide who may see it. */
+  owners: Map<string, Owner>;
+};
+
+/** The part of the corpus one household may see. `officialOnly` leaves community recipes out. */
+export function visibleCorpus(loaded: Loaded, householdId: string, officialOnly = false): Corpus {
+  return {
+    ...loaded,
+    recipes: loaded.recipes.filter((recipe) => {
+      const owner = loaded.owners.get(recipe.recipe_version_id);
+      if (!owner || !canSee(owner, householdId)) return false;
+      return !officialOnly || sourceOf(owner, householdId) !== "community";
+    }),
+  };
+}
 
 /** Reads every servable recipe once and keeps it for a short time. */
 export function createCorpusReader(db: Db) {
@@ -47,6 +65,11 @@ export function createCorpusReader(db: Db) {
     const versions = await db
       .select({
         version: recipeVersions,
+        owner: {
+          household_id: recipes.household_id,
+          shared_at: recipes.shared_at,
+          removed_at: recipes.removed_at,
+        },
         suitability: recipeDeviceVariants.suitability,
         image: recipeImages.file,
       })
@@ -106,6 +129,7 @@ export function createCorpusReader(db: Db) {
       })),
       ingredients: new Map(all.map((i) => [i.id, i])),
       substitutes,
+      owners: new Map(versions.map(({ version, owner }) => [version.id, owner])),
       display: new Map(
         versions.map(({ version, image }) => [
           version.id,
@@ -123,18 +147,24 @@ export function createCorpusReader(db: Db) {
     };
   }
 
-  return () => {
-    if (!cached || Date.now() - cached.at > CORPUS_TTL_MS) {
-      cached = { at: Date.now(), value: load() };
-    }
-    return cached.value;
+  return {
+    read: () => {
+      if (!cached || Date.now() - cached.at > CORPUS_TTL_MS) {
+        cached = { at: Date.now(), value: load() };
+      }
+      return cached.value;
+    },
+    /** Drops the kept copy, after a change a household should see at once. */
+    invalidate: () => {
+      cached = undefined;
+    },
   };
 }
 
 export type CorpusReader = ReturnType<typeof createCorpusReader>;
 
 /** The mapped pantry, one line per ingredient. Amounts in one unit add up; mixed units mean "some". */
-async function snapshot(db: Db, householdId: string): Promise<PantrySnapshotLine[]> {
+export async function snapshot(db: Db, householdId: string): Promise<PantrySnapshotLine[]> {
   const rows = await db
     .select()
     .from(pantryItems)
@@ -205,7 +235,7 @@ export type SuggestDeps = { db: Db; llm: Llm; corpus: CorpusReader };
  * run from the pantry as it was then.
  */
 export async function suggest(
-  { db, llm, corpus: readCorpus }: SuggestDeps,
+  { db, llm, corpus }: SuggestDeps,
   household: Household,
   profile: HouseholdProfile,
   input: SuggestInput,
@@ -226,9 +256,11 @@ export async function suggest(
     use_up: input.use_up ?? [],
     craving: input.craving?.trim() || null,
     mc_only: input.mc_only ?? false,
+    official_only: input.official_only ?? false,
   };
   const pantry = earlier?.pantry_snapshot ?? (await snapshot(db, household.id));
-  const loaded = await readCorpus();
+  const loaded = await corpus.read();
+  const visible = visibleCorpus(loaded, household.id, request.official_only ?? false);
   const [cravingVector] = request.craving
     ? await llm.embed([request.craving], {
         endpoint: "suggestions.craving",
@@ -236,7 +268,7 @@ export async function suggest(
       })
     : [];
   const { ranked, near } = rank(
-    loaded,
+    visible,
     {
       pantry,
       profile,
@@ -249,7 +281,11 @@ export async function suggest(
     request,
   );
 
-  const facts = new Map(loaded.recipes.map((r) => [r.recipe_version_id, r]));
+  const facts = new Map(visible.recipes.map((r) => [r.recipe_version_id, r]));
+  const source = (versionId: string) => {
+    const owner = loaded.owners.get(versionId);
+    return owner ? sourceOf(owner, household.id) : "official";
+  };
   const shown = new Set(earlier?.results.map((r) => r.recipe_version_id));
   const { picked, more } = pickVaried(ranked, facts, shown, PAGE_SIZE);
   const name = (id: string) => loaded.ingredients.get(id)?.name ?? "";
@@ -275,7 +311,14 @@ export async function suggest(
     const display = loaded.display.get(result.recipe_version_id);
     const recipe = facts.get(result.recipe_version_id);
     return display && recipe
-      ? [{ ...result, ...display, has_device_variant: recipe.has_device_variant }]
+      ? [
+          {
+            ...result,
+            ...display,
+            has_device_variant: recipe.has_device_variant,
+            source: source(result.recipe_version_id),
+          },
+        ]
       : [];
   });
   const closest: NearMiss[] =
@@ -289,6 +332,7 @@ export async function suggest(
                   recipe_id: display.recipe_id,
                   title: display.title,
                   image: display.image,
+                  source: source(miss.recipe_version_id),
                 },
               ]
             : [];

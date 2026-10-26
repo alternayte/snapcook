@@ -83,6 +83,86 @@ function cosine(a: number[], b: number[]) {
   return na === 0 || nb === 0 ? 0 : dot / Math.sqrt(na * nb);
 }
 
+export type Assessment = {
+  /** True when an allergy or the diet rules the dish out and nothing can stand in. */
+  ruledOut: boolean;
+  /** On hand, core ingredients first. Assumed staples are not listed. */
+  have: string[];
+  /** Supporting ingredients the household lacks. */
+  missing: string[];
+  /** Core ingredients the household lacks. */
+  missingCore: string[];
+  substituted: Scored["substituted"];
+  disliked: string[];
+  supporting: number;
+  supportingCovered: number;
+};
+
+/** Sets up the per-dish check for one kitchen. */
+export function createAssessor(corpus: Corpus, kitchen: Kitchen) {
+  const { profile } = kitchen;
+  const stocked = new Map(kitchen.pantry.map((line) => [line.ingredient_id, line]));
+  const available = new Set([...stocked.keys(), ...profile.staples]);
+  const dislikes = new Set(profile.dislikes);
+  const banned = createBanCheck(profile, corpus.ingredients);
+  /** Something on hand that may be eaten and can stand in for the ingredient. */
+  const standIn = (id: string) =>
+    (corpus.substitutes.get(id) ?? []).find((s) => available.has(s) && !banned(s));
+  const flags = (id: string) => corpus.ingredients.get(id)?.contains ?? [];
+
+  /** What the household has and lacks for one dish, and whether it may eat it at all. */
+  return (recipe: CorpusRecipe): Assessment => {
+    const result: Assessment = {
+      ruledOut: false,
+      have: [],
+      missing: [],
+      missingCore: [],
+      substituted: [],
+      disliked: [],
+      supporting: 0,
+      supportingCovered: 0,
+    };
+    // An optional ingredient can be left out, so it never rules a dish out.
+    const needed = recipe.lines.filter((line) => line.role !== "optional");
+    // Kosher also forbids meat and dairy in one dish.
+    if (
+      profile.diet_style === "kosher" &&
+      needed.some((l) => flags(l.ingredient_id).includes("meat")) &&
+      needed.some((l) => flags(l.ingredient_id).includes("dairy"))
+    ) {
+      return { ...result, ruledOut: true };
+    }
+    let coreHave = 0;
+    for (const line of needed) {
+      const id = line.ingredient_id;
+      const isBanned = banned(id);
+      const direct = !isBanned && available.has(id);
+      const swap = direct ? undefined : standIn(id);
+      if (isBanned && !swap) return { ...result, ruledOut: true };
+      if (line.role === "supporting") result.supporting += 1;
+      if (direct) {
+        // Only what is really in the pantry is listed; an assumed staple is not. What defines
+        // the dish comes first.
+        if (!stocked.has(id)) {
+          // Assumed from the profile.
+        } else if (line.role === "core") result.have.splice(coreHave++, 0, id);
+        else if (line.role !== "staple") result.have.push(id);
+        if (line.role === "supporting") result.supportingCovered += 1;
+        if (dislikes.has(id)) result.disliked.push(id);
+      } else if (swap) {
+        result.substituted.push({ ingredient_id: id, substitute_id: swap });
+        if (line.role === "supporting") result.supportingCovered += 1;
+      } else if (line.role === "core") {
+        result.missingCore.push(id);
+      } else if (line.role === "supporting") {
+        result.missing.push(id);
+      }
+      // A staple that is not in the house is assumed: the profile says what the household keeps.
+    }
+    return result;
+  };
+}
+
 /**
  * Ranks every dish the household can make now, best fit first, and lists the near misses.
  * No model is called: everything comes from the corpus, the pantry and the profile.
@@ -92,16 +172,9 @@ export function rank(
   kitchen: Kitchen,
   request: SuggestRequest,
 ): { ranked: Scored[]; near: Near[] } {
-  const { profile } = kitchen;
   const stocked = new Map(kitchen.pantry.map((line) => [line.ingredient_id, line]));
-  const available = new Set([...stocked.keys(), ...profile.staples]);
-  const dislikes = new Set(profile.dislikes);
   const useUp = new Set(request.use_up);
-  const banned = createBanCheck(profile, corpus.ingredients);
-  /** Something on hand that may be eaten and can stand in for the ingredient. */
-  const standIn = (id: string) =>
-    (corpus.substitutes.get(id) ?? []).find((s) => available.has(s) && !banned(s));
-  const flags = (id: string) => corpus.ingredients.get(id)?.contains ?? [];
+  const assess = createAssessor(corpus, kitchen);
 
   const ranked: Scored[] = [];
   const near: Near[] = [];
@@ -109,56 +182,17 @@ export function rank(
   for (const recipe of corpus.recipes) {
     if (recipe.time_total_min > request.time_budget_min) continue;
     if (request.mc_only && !recipe.has_device_variant) continue;
-    // An optional ingredient can be left out, so it never rules a dish out.
     const needed = recipe.lines.filter((line) => line.role !== "optional");
-    // Kosher also forbids meat and dairy in one dish.
-    if (
-      profile.diet_style === "kosher" &&
-      needed.some((l) => flags(l.ingredient_id).includes("meat")) &&
-      needed.some((l) => flags(l.ingredient_id).includes("dairy"))
-    ) {
-      continue;
-    }
-
-    const have: string[] = [];
-    const missing: string[] = [];
-    const missingCore: string[] = [];
-    const substituted: Scored["substituted"] = [];
-    const disliked: string[] = [];
-    let ruledOut = false;
-    let supporting = 0;
-    let supportingCovered = 0;
-    let coreHave = 0;
-
-    for (const line of needed) {
-      const id = line.ingredient_id;
-      const isBanned = banned(id);
-      const direct = !isBanned && available.has(id);
-      const swap = direct ? undefined : standIn(id);
-      if (isBanned && !swap) {
-        ruledOut = true;
-        break;
-      }
-      if (line.role === "supporting") supporting += 1;
-      if (direct) {
-        // Only what is really in the pantry is listed; an assumed staple is not. What defines
-        // the dish comes first.
-        if (!stocked.has(id)) {
-          // Assumed from the profile.
-        } else if (line.role === "core") have.splice(coreHave++, 0, id);
-        else if (line.role !== "staple") have.push(id);
-        if (line.role === "supporting") supportingCovered += 1;
-        if (dislikes.has(id)) disliked.push(id);
-      } else if (swap) {
-        substituted.push({ ingredient_id: id, substitute_id: swap });
-        if (line.role === "supporting") supportingCovered += 1;
-      } else if (line.role === "core") {
-        missingCore.push(id);
-      } else if (line.role === "supporting") {
-        missing.push(id);
-      }
-      // A staple that is not in the house is assumed: the profile says what the household keeps.
-    }
+    const {
+      ruledOut,
+      have,
+      missing,
+      missingCore,
+      substituted,
+      disliked,
+      supporting,
+      supportingCovered,
+    } = assess(recipe);
     if (ruledOut) continue;
     if (missingCore.length > 0) {
       // Close means the household has part of what defines the dish, not none of it.

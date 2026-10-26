@@ -1,12 +1,14 @@
 import { type Db, schema } from "@snapcook/db";
 import type { Llm } from "@snapcook/llm";
-import type {
-  CookView,
-  FinishCookInput,
-  FinishCookResponse,
-  Household,
-  HouseholdProfile,
-  RescueResponse,
+import {
+  type CookView,
+  convert,
+  type FinishCookInput,
+  type FinishCookResponse,
+  type Household,
+  type HouseholdProfile,
+  type RemovedItem,
+  type RescueResponse,
 } from "@snapcook/schema";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
@@ -21,6 +23,7 @@ const {
   recipeImages,
   recipeReports,
   recipeVersions,
+  users,
 } = schema;
 
 // A rating at or below this, or any note, is worth a person's look at the recipe.
@@ -28,7 +31,7 @@ const LOW_RATING = 2;
 // At or above this cosine, a question is taken to be about a known way the dish goes wrong.
 const KNOWN_FIX_MIN_SIMILARITY = 0.8;
 const RESCUE_MAX_WORDS = 120;
-const HISTORY_LIMIT = 50;
+const HISTORY_LIMIT = 200;
 
 const sessionWith = (db: Db) =>
   db
@@ -190,6 +193,18 @@ export async function finishCook(
       .update(cookSessions)
       .set({
         deductions: result.applied,
+        removed_items: removed.map(
+          (item): RemovedItem => ({
+            id: item.id,
+            ingredient_id: item.ingredient_id,
+            display_name: item.display_name,
+            quantity: item.quantity,
+            unit: item.unit,
+            location: item.location,
+            use_soon: item.use_soon,
+            expires_on: item.expires_on,
+          }),
+        ),
         finished_at: now,
         rating: input.rating ?? null,
         notes: input.notes || null,
@@ -214,9 +229,23 @@ export async function finishCook(
   });
 }
 
-/** The household's cooks, newest first. */
+/** The household's cooks, newest first, with who cooked and whether the machine was used. */
 export async function cookHistory(db: Db, householdId: string) {
-  const rows = await sessionWith(db)
+  const rows = await db
+    .select({
+      session: cookSessions,
+      output: adaptations.output,
+      controls: adaptations.controls,
+      recipe_id: recipeVersions.recipe_id,
+      title: recipeVersions.title,
+      image: recipeImages.file,
+      cook: users.name,
+    })
+    .from(cookSessions)
+    .innerJoin(adaptations, eq(adaptations.id, cookSessions.adaptation_id))
+    .innerJoin(recipeVersions, eq(recipeVersions.id, adaptations.recipe_version_id))
+    .leftJoin(recipeImages, eq(recipeImages.recipe_version_id, recipeVersions.id))
+    .innerJoin(users, eq(users.id, cookSessions.user_id))
     .where(eq(cookSessions.household_id, householdId))
     .orderBy(desc(cookSessions.started_at))
     .limit(HISTORY_LIMIT);
@@ -229,7 +258,115 @@ export async function cookHistory(db: Db, householdId: string) {
     finished_at: row.session.finished_at,
     rating: row.session.rating,
     servings: row.output.servings,
+    cook: row.cook,
+    machine: row.controls.device_profile_id !== null,
   }));
+}
+
+/** What removing a finished cook puts back into the pantry, by pantry item. */
+export async function restoreList(db: Db, householdId: string, id: string) {
+  const [row] = await db
+    .select({ session: cookSessions })
+    .from(cookSessions)
+    .where(and(eq(cookSessions.household_id, householdId), eq(cookSessions.id, id)));
+  if (!row) return undefined;
+  const removed = new Map((row.session.removed_items ?? []).map((item) => [item.id, item]));
+  const ids = (row.session.deductions ?? []).map((d) => d.pantry_item_id);
+  const held =
+    ids.length === 0
+      ? []
+      : await db
+          .select({ id: pantryItems.id, display_name: pantryItems.display_name })
+          .from(pantryItems)
+          .where(and(eq(pantryItems.household_id, householdId), inArray(pantryItems.id, ids)));
+  const names = new Map(held.map((item) => [item.id, item.display_name]));
+  return [
+    ...(row.session.deductions ?? [])
+      .filter((d) => d.quantity > 0)
+      .map((d) => ({
+        display_name:
+          names.get(d.pantry_item_id) ?? removed.get(d.pantry_item_id)?.display_name ?? "",
+        quantity: d.quantity as number | null,
+        unit: d.unit as RemovedItem["unit"],
+      })),
+    // A "some" item the cook used up comes back with no amount.
+    ...[...removed.values()]
+      .filter((item) => item.quantity === null)
+      .map((item) => ({ display_name: item.display_name, quantity: null, unit: null })),
+  ].filter((line) => line.display_name !== "");
+}
+
+/**
+ * Removes a cook. With `restore`, everything its finish took from the pantry goes back: amounts
+ * are added to the items that are still there, and items it used up are made again. One
+ * transaction, so a removal never half-applies.
+ */
+export async function removeCook(db: Db, householdId: string, id: string, restore: boolean) {
+  return db.transaction(async (tx) => {
+    const [row] = await tx
+      .select({ session: cookSessions })
+      .from(cookSessions)
+      .where(and(eq(cookSessions.household_id, householdId), eq(cookSessions.id, id)))
+      .for("update");
+    if (!row) return false;
+    if (restore && row.session.finished_at) {
+      const removed = new Map((row.session.removed_items ?? []).map((item) => [item.id, item]));
+      const deductions = row.session.deductions ?? [];
+      const ids = [...new Set([...deductions.map((d) => d.pantry_item_id), ...removed.keys()])];
+      const held =
+        ids.length === 0
+          ? []
+          : await tx
+              .select()
+              .from(pantryItems)
+              .where(and(eq(pantryItems.household_id, householdId), inArray(pantryItems.id, ids)))
+              .for("update");
+      const facts = await tx
+        .select({
+          id: ingredients.id,
+          grams_per_unit: ingredients.grams_per_unit,
+          ml_per_unit: ingredients.ml_per_unit,
+        })
+        .from(ingredients)
+        .where(
+          inArray(
+            ingredients.id,
+            [...held, ...removed.values()].flatMap((item) =>
+              item.ingredient_id ? [item.ingredient_id] : [],
+            ),
+          ),
+        );
+      const conversions = new Map(facts.map((f) => [f.id, f]));
+      const now = new Date();
+      for (const item of held) {
+        const deduction = deductions.find((d) => d.pantry_item_id === item.id);
+        if (!deduction || item.quantity === null || item.unit === null) continue;
+        const facts = item.ingredient_id ? conversions.get(item.ingredient_id) : undefined;
+        const back =
+          deduction.unit === item.unit
+            ? deduction.quantity
+            : facts
+              ? convert(deduction.quantity, deduction.unit, item.unit, facts)
+              : null;
+        // The item was changed to a unit with no conversion since: its amount is left alone.
+        if (back === null) continue;
+        await tx
+          .update(pantryItems)
+          .set({ quantity: Math.round((item.quantity + back) * 100) / 100, updated_at: now })
+          .where(eq(pantryItems.id, item.id));
+      }
+      const gone = [...removed.values()].filter((item) => !held.some((h) => h.id === item.id));
+      if (gone.length > 0) {
+        await tx
+          .insert(pantryItems)
+          .values(
+            gone.map((item) => ({ ...item, household_id: householdId, source: "manual" as const })),
+          );
+      }
+    }
+    await tx.delete(cookSessions).where(eq(cookSessions.id, id));
+    return true;
+  });
 }
 
 function cosine(a: number[], b: number[]) {
