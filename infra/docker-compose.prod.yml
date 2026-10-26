@@ -29,6 +29,11 @@ services:
       MODEL_REVIEW: ${MODEL_REVIEW:?set MODEL_REVIEW}
       MODEL_WRITE: ${MODEL_WRITE:?set MODEL_WRITE}
       MODEL_EMBED: ${MODEL_EMBED:?set MODEL_EMBED}
+      # Recipe imports: the private writing prompts and picture style, as JSON. Imports are off
+      # without PIPELINE_CONFIG; imported recipes get no picture without IMAGE_CONFIG and MODEL_IMAGE.
+      PIPELINE_CONFIG: ${PIPELINE_CONFIG:-}
+      IMAGE_CONFIG: ${IMAGE_CONFIG:-}
+      MODEL_IMAGE: ${MODEL_IMAGE:-}
       IMAGE_DIR: /data/images
       SNAP_DIR: /data/snaps
     volumes:

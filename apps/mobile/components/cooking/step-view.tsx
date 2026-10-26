@@ -1,5 +1,6 @@
 import type { AdaptedRecipe, DeviceStep } from "@snapcook/schema";
 import { View } from "react-native";
+import { machineSettings } from "@/components/recipe/step-card";
 import { Button } from "@/components/ui/button";
 import { Text } from "@/components/ui/text";
 import { amount, clock } from "@/lib/format";
@@ -66,13 +67,7 @@ export function StepView({ cookId, title, step, ingredients }: Props) {
       <Text className={side ? "font-body text-lg" : "font-medium text-xl"}>{step.text}</Text>
       {step.mc ? (
         <View className="flex-row flex-wrap gap-2 rounded border-bold border-ink bg-mustard p-3">
-          {[
-            t("recipe.device.temp", { temp: step.mc.temp_c }),
-            t("recipe.step.minutes", { minutes: step.mc.minutes }),
-            t("recipe.device.speed", { speed: step.mc.speed }),
-            ...(step.mc.reverse ? [t("recipe.device.reverse")] : []),
-            ...(step.mc.accessory ? [t(`recipe.device.accessory.${step.mc.accessory}`)] : []),
-          ].map((setting) => (
+          {machineSettings(t, step.mc).map((setting) => (
             <View key={setting} className="rounded-[2px] bg-card px-3 py-2">
               <Text className="font-title text-xl">{setting}</Text>
             </View>

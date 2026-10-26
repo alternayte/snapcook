@@ -58,7 +58,7 @@ export const readHint = (choices: Choices) =>
     `dish_type: one of ${listed(choices.dish_type)}.`,
     `primary_protein: one of ${listed(choices.primary_protein)}.`,
     `technique: one of ${listed(choices.technique)}.`,
-    "ingredients: one entry per ingredient line. text is the line as printed. generic is the ingredient itself in English, singular, with no brand, size or pack type: 'Mae Ploy red curry paste' is 'red curry paste', '2 x 400g tins chopped tomatoes' is 'tinned chopped tomatoes'.",
+    "ingredients: one entry per ingredient. A line that names two ingredients, such as 'salt and pepper' or 'oil and butter', becomes one entry for each. text is the line as printed. generic is the ingredient itself in English, singular, with no brand, size or pack type: 'Mae Ploy red curry paste' is 'red curry paste', '2 x 400g tins chopped tomatoes' is 'tinned chopped tomatoes'.",
     "quantity and unit: the amount as printed. Write the unit as printed (g, kg, ml, l, tbsp, tsp, cup, oz, lb) or 'piece' for things that are counted. Both null for 'to taste' or no amount. prep: how it is cut or prepared, or null.",
     "role: core when the dish is not this dish without it; supporting when it belongs but the dish survives without it; staple for salt, pepper, oil, butter and water-like basics; optional for garnish and anything the recipe calls optional.",
     "steps: the method in order, one entry per step, in the recipe's own order and meaning, in plain English. kind is prep, pan (on the hob), oven or rest. lane is main, or side for a step that runs while a main step cooks. minutes for any step that takes time, else null.",

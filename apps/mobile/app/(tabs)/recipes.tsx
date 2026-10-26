@@ -40,6 +40,16 @@ function Recipes({ householdId }: { householdId: string }) {
     return () => clearTimeout(wait);
   }, [typed]);
   const cooked = source === "cooked";
+  // The filters stay folded away until asked for, so the recipes come first.
+  const [showFilters, setShowFilters] = useState(false);
+  const active = [
+    query.max_time !== undefined,
+    query.effort !== undefined,
+    query.mc_only === true,
+    query.fits === false,
+    query.sort === "title",
+    query.cuisine !== undefined,
+  ].filter(Boolean).length;
   const browse = useBrowse(householdId, {
     ...query,
     source: cooked ? undefined : source,
@@ -91,71 +101,79 @@ function Recipes({ householdId }: { householdId: string }) {
             maxLength={80}
             returnKeyType="search"
           />
-          <View className="gap-2">
-            <Text variant="label">{t("recipes.filters")}</Text>
-            <View className="flex-row flex-wrap gap-2">
-              {TIMES_MIN.map((minutes, index) => (
-                <Chip
-                  key={minutes}
-                  index={index}
-                  label={t("recipes.filter.time", { minutes })}
-                  selected={query.max_time === minutes}
-                  onPress={() =>
-                    set({ max_time: query.max_time === minutes ? undefined : minutes })
-                  }
-                />
-              ))}
-              <Chip
-                index={3}
-                label={t("recipes.filter.lazy")}
-                selected={query.effort === "lazy"}
-                onPress={() => set({ effort: query.effort === "lazy" ? undefined : "lazy" })}
-              />
-              <Chip
-                index={4}
-                label={t("recipes.filter.machine")}
-                selected={query.mc_only === true}
-                onPress={() => set({ mc_only: query.mc_only ? undefined : true })}
-              />
-              <Chip
-                index={5}
-                label={t("recipes.filter.fits")}
-                selected={query.fits !== false}
-                onPress={() => set({ fits: query.fits === false })}
-              />
-              <Chip
-                index={6}
-                label={t("recipes.sort.title")}
-                selected={query.sort === "title"}
-                onPress={() => set({ sort: query.sort === "title" ? "match" : "title" })}
-              />
-            </View>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerClassName="gap-2 py-1"
-            >
-              <Chip
-                label={t("recipes.cuisine.all")}
-                selected={query.cuisine === undefined}
-                onPress={() => set({ cuisine: undefined })}
-              />
-              {(browse.data?.cuisines ?? []).map((cuisine, index) => {
-                const words = cuisine.replaceAll("_", " ");
-                return (
+          <View className="flex-row">
+            <Chip
+              label={t("recipes.filters", { count: active })}
+              selected={showFilters || active > 0}
+              onPress={() => setShowFilters(!showFilters)}
+            />
+          </View>
+          {showFilters ? (
+            <View className="gap-2">
+              <View className="flex-row flex-wrap gap-2">
+                {TIMES_MIN.map((minutes, index) => (
                   <Chip
-                    key={cuisine}
-                    index={index + 1}
-                    label={words.charAt(0).toUpperCase() + words.slice(1)}
-                    selected={query.cuisine === cuisine}
+                    key={minutes}
+                    index={index}
+                    label={t("recipes.filter.time", { minutes })}
+                    selected={query.max_time === minutes}
                     onPress={() =>
-                      set({ cuisine: query.cuisine === cuisine ? undefined : cuisine })
+                      set({ max_time: query.max_time === minutes ? undefined : minutes })
                     }
                   />
-                );
-              })}
-            </ScrollView>
-          </View>
+                ))}
+                <Chip
+                  index={3}
+                  label={t("recipes.filter.lazy")}
+                  selected={query.effort === "lazy"}
+                  onPress={() => set({ effort: query.effort === "lazy" ? undefined : "lazy" })}
+                />
+                <Chip
+                  index={4}
+                  label={t("recipes.filter.machine")}
+                  selected={query.mc_only === true}
+                  onPress={() => set({ mc_only: query.mc_only ? undefined : true })}
+                />
+                <Chip
+                  index={5}
+                  label={t("recipes.filter.fits")}
+                  selected={query.fits !== false}
+                  onPress={() => set({ fits: query.fits === false })}
+                />
+                <Chip
+                  index={6}
+                  label={t("recipes.sort.title")}
+                  selected={query.sort === "title"}
+                  onPress={() => set({ sort: query.sort === "title" ? "match" : "title" })}
+                />
+              </View>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerClassName="gap-2 py-1"
+              >
+                <Chip
+                  label={t("recipes.cuisine.all")}
+                  selected={query.cuisine === undefined}
+                  onPress={() => set({ cuisine: undefined })}
+                />
+                {(browse.data?.cuisines ?? []).map((cuisine, index) => {
+                  const words = cuisine.replaceAll("_", " ");
+                  return (
+                    <Chip
+                      key={cuisine}
+                      index={index + 1}
+                      label={words.charAt(0).toUpperCase() + words.slice(1)}
+                      selected={query.cuisine === cuisine}
+                      onPress={() =>
+                        set({ cuisine: query.cuisine === cuisine ? undefined : cuisine })
+                      }
+                    />
+                  );
+                })}
+              </ScrollView>
+            </View>
+          ) : null}
           {browse.data ? (
             <Text variant="small">{t("recipes.count", { count: browse.data.cards.length })}</Text>
           ) : null}

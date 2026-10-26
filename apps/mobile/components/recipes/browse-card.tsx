@@ -71,7 +71,7 @@ export function BrowseCard({ card, names, householdId }: Props) {
         </Pressable>
       </Link>
       {card.missing.length > 0 && card.fits ? (
-        <View className="items-end">
+        <View className="flex-row justify-end">
           <AddMissing householdId={householdId} recipeId={card.recipe_id} variant="quiet" />
         </View>
       ) : null}
