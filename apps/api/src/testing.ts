@@ -13,6 +13,7 @@ export function createTestServer(
     llm?: Llm;
     ownerEmails?: string[];
     snaps?: AppDeps["snaps"];
+    imports?: AppDeps["imports"];
     billingWebhookSecret?: string;
   } = {},
 ) {
@@ -35,6 +36,12 @@ export function createTestServer(
     snaps: over.snaps ?? {
       snapDir: "/nonexistent",
       enqueueDetect: () => Promise.reject(new Error("no job runner in this test")),
+    },
+    imports: over.imports ?? {
+      photoDir: "/nonexistent",
+      enabled: false,
+      enqueueRead: () => Promise.reject(new Error("no job runner in this test")),
+      enqueueSave: () => Promise.reject(new Error("no job runner in this test")),
     },
   });
 

@@ -40,18 +40,25 @@ export const ImportDraft = z.object({
 });
 export type ImportDraft = z.infer<typeof ImportDraft>;
 
+/** Why an import ended without a recipe. */
+export const ImportError = z.enum(["not_a_recipe", "read_failed", "checks_failed", "save_failed"]);
+export type ImportError = z.infer<typeof ImportError>;
+
 export const RecipeImport = z.object({
   id: Id,
   household_id: Id,
   user_id: Id,
   /** The recipe being edited, or the recipe this import made. Null before an import is saved. */
   recipe_id: Id.nullable(),
+  /** True when this changes an existing recipe instead of adding one. */
+  is_edit: z.boolean(),
   status: ImportStatus,
   /** Image files under the photo directory. They are deleted once the import has ended. */
   photos: z.array(z.string().min(1)),
   draft: ImportDraft.nullable(),
-  /** Why the import failed, in words for the household. */
-  error: z.string().nullable(),
+  error: ImportError.nullable(),
+  /** What the recipe checks found, when they failed. */
+  problems: z.array(z.string()),
   cost_usd: z.number().nonnegative(),
   created_at: z.date(),
   updated_at: z.date(),
@@ -63,7 +70,8 @@ export const ImportView = z.object({
   id: Id,
   status: ImportStatus,
   draft: ImportDraft.nullable(),
-  error: z.string().nullable(),
+  error: ImportError.nullable(),
+  problems: z.array(z.string()),
   recipe_id: Id.nullable(),
   /** True when this changes an existing recipe instead of adding one. */
   editing: z.boolean(),

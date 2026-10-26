@@ -12,12 +12,13 @@ import { billingWebhook } from "./modules/billing/webhook";
 import { cookRoutes } from "./modules/cook/routes";
 import { householdRoutes, sessionRoutes } from "./modules/household/routes";
 import { membership } from "./modules/household/service";
+import { type ImportRouteDeps, importRoutes } from "./modules/imports/routes";
 import { listRoutes } from "./modules/list/routes";
 import { pantryRoutes } from "./modules/pantry/routes";
 import { recipeRoutes } from "./modules/recipes/routes";
 import { type SnapDeps, snapRoutes } from "./modules/snaps/routes";
 import { suggestionRoutes } from "./modules/suggestions/routes";
-import { createCorpusReader } from "./modules/suggestions/service";
+import { type CorpusReader, createCorpusReader } from "./modules/suggestions/service";
 
 export type AppDeps = {
   db: Db;
@@ -32,6 +33,9 @@ export type AppDeps = {
   /** A household created by one of these addresses gets the owner plan. Lower case. */
   ownerEmails: string[];
   snaps: Omit<SnapDeps, "db">;
+  imports: Omit<ImportRouteDeps, "db">;
+  /** The kept copy of every recipe, shared with the jobs that change recipes. */
+  corpus?: CorpusReader;
   /** Receives one line per request, for the server's log. Unset means no request log. */
   log?: (line: string) => void;
   /** Says whether the background jobs are running. Unset means there are none to check. */
@@ -48,7 +52,7 @@ const IMAGE_NAME = /^[0-9a-f-]{36}\.webp$/;
 export function createApp(deps: AppDeps) {
   const { db, auth, llm, corsOrigins, imageDir, ownerEmails } = deps;
   const matcher = deps.matcher ?? createIngredientMatcher(db);
-  const corpus = createCorpusReader(db);
+  const corpus = deps.corpus ?? createCorpusReader(db);
 
   const session = createMiddleware<SessionEnv>(async (c, next) => {
     const found = await auth.api.getSession({ headers: c.req.raw.headers });
@@ -77,6 +81,7 @@ export function createApp(deps: AppDeps) {
     .route("/", householdRoutes(db, llm, matcher))
     .route("/", pantryRoutes(db, matcher))
     .route("/", snapRoutes({ db, ...deps.snaps }))
+    .route("/", importRoutes({ db, ...deps.imports }))
     .route("/", cookRoutes(db, llm))
     .route("/", listRoutes(db, matcher))
     .route("/", recipeRoutes({ db, llm, model: deps.adaptModel, corpus }))

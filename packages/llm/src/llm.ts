@@ -114,6 +114,34 @@ export function createLlm({ models, record }: LlmDeps) {
     },
 
     /**
+     * Reads several images together as one object of the given schema, with the model of the
+     * given role. One call, so the model can join a text that runs across the images.
+     */
+    read<S extends z.ZodType>(
+      images: { data: Uint8Array; mediaType: "image/jpeg" | "image/png" }[],
+      schema: S,
+      hint: string,
+      ctx: CallContext & { role: "adapt" | "vision" },
+    ) {
+      const { role, ...context } = ctx;
+      return generate(models[role], schema, context, {
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: hint },
+              ...images.map((image) => ({
+                type: "file" as const,
+                data: image.data,
+                mediaType: image.mediaType,
+              })),
+            ],
+          },
+        ],
+      });
+    },
+
+    /**
      * Answers a prompt as an object of the given schema. `review` uses the second model family;
      * `vision` is the cheap model, for short answers that need no strong one.
      */

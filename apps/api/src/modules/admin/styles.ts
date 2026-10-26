@@ -66,6 +66,14 @@ button.mark:hover { background: var(--mark); color: var(--paper); }
 form.login { display: grid; gap: calc(var(--unit) * 2); max-width: 22rem; }
 form.login label { display: grid; gap: var(--unit); font-size: var(--small); color: var(--ink-soft); }
 form.login input { font: inherit; padding: var(--unit); border: 1px solid var(--rule); background: transparent; color: var(--ink); }
+nav.sections { display: flex; gap: calc(var(--unit) * 3); margin-bottom: calc(var(--unit) * 3); font-size: var(--small); text-transform: uppercase; letter-spacing: 0.12em; }
+nav.sections a[aria-current] { text-decoration-color: var(--mark); text-decoration-thickness: 2px; }
+form.fix { display: grid; gap: var(--unit); padding: calc(var(--unit) * 2) 0; border-bottom: 1px solid var(--rule); }
+form.fix fieldset { border: 0; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: var(--unit) calc(var(--unit) * 2); font-size: var(--small); }
+form.fix legend { font-weight: 600; color: var(--ink-soft); padding: 0; margin-bottom: calc(var(--unit) / 2); }
+form.fix select, form.fix input[type="number"], form.fix input[list] { font: inherit; font-size: var(--small); padding: calc(var(--unit) / 2); border: 1px solid var(--rule); background: transparent; color: var(--ink); }
+form.fix .row { display: flex; flex-wrap: wrap; gap: var(--unit); align-items: center; }
+form.inline { display: inline; }
 img.dish { display: block; width: 100%; margin: calc(var(--unit) * 2) 0; border: 1px solid var(--rule); }
 @media (max-width: 40rem) {
   body { padding: calc(var(--unit) * 2); }

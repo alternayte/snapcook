@@ -5,7 +5,7 @@ import { nameForms } from "./names";
 
 export type Canonical = { id: string; name: string };
 
-// Ingredients change only when the seed is loaded again, so one read serves many requests.
+// Ingredients change rarely (a seed load, an import, a merge), so one read serves many requests.
 const TTL_MS = 10 * 60 * 1000;
 
 /** At or above this cosine, a name with no exact match is taken to mean its nearest ingredient. */
@@ -70,6 +70,11 @@ export function createIngredientMatcher(db: Db) {
             : undefined;
         }),
       );
+    },
+
+    /** Drops the kept index, after an ingredient has been added or merged. */
+    forget() {
+      loaded = undefined;
     },
 
     /** Every canonical name, once each. */

@@ -1,8 +1,10 @@
+import { ImageConfig, PipelineConfig } from "@snapcook/authoring";
 import { createDb, migrate, recordLlmCall } from "@snapcook/db";
 import { createOpenRouterLlm } from "@snapcook/llm";
 import { createIngredientMatcher } from "@snapcook/recognition";
 import { startJobs } from "./jobs";
 import { createAuth } from "./modules/auth/auth";
+import { createCorpusReader } from "./modules/suggestions/service";
 import { createServer } from "./server";
 
 const required = (name: string) => {
@@ -26,13 +28,38 @@ const corsOrigins = list("CORS_ORIGINS");
 const llm = createOpenRouterLlm(process.env, recordLlmCall(db));
 const matcher = createIngredientMatcher(db);
 const snapDir = required("SNAP_DIR");
-const jobs = await startJobs(required("DATABASE_URL"), { db, llm, matcher, snapDir });
+const imageDir = process.env.IMAGE_DIR || undefined;
+// The recipe writing prompts and the picture style are private: they come from the environment.
+const pipeline = process.env.PIPELINE_CONFIG
+  ? PipelineConfig.parse(JSON.parse(process.env.PIPELINE_CONFIG))
+  : undefined;
+const image = process.env.IMAGE_CONFIG
+  ? ImageConfig.parse(JSON.parse(process.env.IMAGE_CONFIG))
+  : undefined;
+const corpus = createCorpusReader(db);
+const jobs = await startJobs(required("DATABASE_URL"), {
+  db,
+  llm,
+  matcher,
+  snapDir,
+  imageDir,
+  pipeline,
+  image,
+  onRecipesChanged: corpus.invalidate,
+});
 
 const app = createServer({
   db,
   llm,
   matcher,
   snaps: { snapDir, enqueueDetect: jobs.enqueueDetect },
+  imports: {
+    photoDir: snapDir,
+    enabled: pipeline !== undefined,
+    enqueueRead: jobs.enqueueRead,
+    enqueueSave: jobs.enqueueSave,
+  },
+  corpus,
   auth: createAuth(db, {
     secret: required("AUTH_SECRET"),
     baseUrl: required("PUBLIC_URL"),
@@ -51,7 +78,7 @@ const app = createServer({
         : undefined,
   }),
   corsOrigins,
-  imageDir: process.env.IMAGE_DIR || undefined,
+  imageDir,
   adaptModel: required("MODEL_ADAPT"),
   log: (line) => console.log(line),
   jobsHealthy: jobs.healthy,

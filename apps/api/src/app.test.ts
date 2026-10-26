@@ -35,6 +35,12 @@ test("GET /api/v1/healthz answers 503 when the background jobs are down", async 
     corsOrigins: [],
     ownerEmails: [],
     snaps: { snapDir: "/nonexistent", enqueueDetect: async () => {} },
+    imports: {
+      photoDir: "/nonexistent",
+      enabled: false,
+      enqueueRead: async () => {},
+      enqueueSave: async () => {},
+    },
     adaptModel: "m",
     jobsHealthy: () => false,
     log: (line) => lines.push(line),

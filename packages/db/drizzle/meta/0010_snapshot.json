@@ -1,5 +1,5 @@
 {
-  "id": "ad1008e8-55e6-47b3-959f-7149627a4114",
+  "id": "70ed7e55-3b80-4226-8c0c-f884dd24efe2",
   "prevId": "08b8781a-875d-4af9-a649-37a5391968ea",
   "version": "7",
   "dialect": "postgresql",
@@ -2149,6 +2149,13 @@
           "primaryKey": false,
           "notNull": false
         },
+        "is_edit": {
+          "name": "is_edit",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
         "status": {
           "name": "status",
           "type": "text",
@@ -2174,6 +2181,13 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
+        },
+        "problems": {
+          "name": "problems",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'"
         },
         "cost_usd": {
           "name": "cost_usd",
@@ -2256,6 +2270,10 @@
         "recipe_imports_status_check": {
           "name": "recipe_imports_status_check",
           "value": "\"recipe_imports\".\"status\" in ('reading', 'checking', 'saving', 'done', 'failed')"
+        },
+        "recipe_imports_error_check": {
+          "name": "recipe_imports_error_check",
+          "value": "\"recipe_imports\".\"error\" in ('not_a_recipe', 'read_failed', 'checks_failed', 'save_failed')"
         }
       },
       "isRLSEnabled": false

@@ -1,12 +1,30 @@
 import type { Db } from "@snapcook/db";
-import { type DeviceStep, RecipeStatus } from "@snapcook/schema";
+import {
+  Allergen,
+  type DeviceStep,
+  DietFlag,
+  Id,
+  IngredientCategory,
+  RecipeStatus,
+  Unit,
+} from "@snapcook/schema";
 import { Hono } from "hono";
 import { csrf } from "hono/csrf";
 import { html, raw } from "hono/html";
 import type { HtmlEscapedString } from "hono/utils/html";
 import type { Auth } from "../auth/auth";
 import { membership } from "../household/service";
-import { getRecipe, listRecipes, setStatus } from "./queries";
+import {
+  approveIngredient,
+  getRecipe,
+  ingredientNames,
+  listCommunity,
+  listRecipes,
+  listUnreviewed,
+  mergeIngredient,
+  setRemoved,
+  setStatus,
+} from "./queries";
 import { styles } from "./styles";
 
 type Markup = HtmlEscapedString | Promise<HtmlEscapedString>;
@@ -23,6 +41,21 @@ const page = (title: string, body: Markup) => html`<!doctype html>
 </html>`;
 
 const label = (value: string) => value.replaceAll("_", " ");
+
+const SECTIONS = [
+  ["recipes", "Official"],
+  ["community", "Community"],
+  ["ingredients", "New ingredients"],
+] as const;
+
+const sections = (current: (typeof SECTIONS)[number][0]) => html`<nav class="sections">
+  ${SECTIONS.map(
+    ([path, name]) =>
+      html`<a href="/admin/${path}" ${current === path ? raw('aria-current="page"') : ""}>${name}</a>`,
+  )}
+</nav>`;
+
+const when = (date: Date | null) => (date ? date.toISOString().slice(0, 10) : "");
 
 // What a person may set by hand. `draft` and `auto_reviewed` belong to the pipeline.
 const HUMAN_STATUSES = ["human_reviewed", "test_cooked", "hidden"] as const;
@@ -60,7 +93,16 @@ const loginPage = (failed: boolean) =>
   );
 
 /** The recipe review pages. Only a member of a household on the owner plan may open them. */
-export function createAdmin({ db, auth }: { db: Db; auth: Auth }) {
+export function createAdmin({
+  db,
+  auth,
+  onRecipesChanged = () => {},
+}: {
+  db: Db;
+  auth: Auth;
+  /** Called after a community recipe is removed or put back, so kept copies read again. */
+  onRecipesChanged?: () => void;
+}) {
   const app = new Hono();
   app.use(csrf());
 
@@ -100,7 +142,7 @@ export function createAdmin({ db, auth }: { db: Db; auth: Auth }) {
     return c.html(
       page(
         "Recipes",
-        html`<h1>Recipes</h1>
+        html`${sections("recipes")}<h1>Official recipes</h1>
           <p class="meta">${rows.length} shown</p>
           <nav class="filters">
             <a href="/admin/recipes" ${filter ? "" : raw('aria-current="page"')}>all</a>
@@ -199,6 +241,119 @@ export function createAdmin({ db, auth }: { db: Db; auth: Auth }) {
     const slug = c.req.param("slug");
     if (!(await setStatus(db, slug, status.data))) return c.notFound();
     return c.redirect(`/admin/recipes/${slug}`, 303);
+  });
+
+  app.get("/community", async (c) => {
+    const rows = await listCommunity(db);
+    return c.html(
+      page(
+        "Community",
+        html`${sections("community")}<h1>Community recipes</h1>
+          <p class="meta">${rows.length} shared. Removing a recipe takes it off every other household's list; its household keeps it and cannot share it again until you put it back.</p>
+          <table>
+            <thead><tr><th>Recipe</th><th>Household</th><th class="wide">Shared</th><th></th></tr></thead>
+            <tbody>
+              ${rows.map(
+                (r) => html`<tr>
+                  <td><a href="/admin/recipes/${r.slug}">${r.title}</a>${r.removed_at ? html`<div class="meta mark">removed ${when(r.removed_at)}</div>` : ""}</td>
+                  <td>${r.household}</td>
+                  <td class="wide num">${when(r.shared_at)}</td>
+                  <td>
+                    <form class="inline" method="post" action="/admin/community/${r.id}/${r.removed_at ? "restore" : "remove"}">
+                      <button class="${r.removed_at ? "" : "mark"}">${r.removed_at ? "Put back" : "Remove"}</button>
+                    </form>
+                  </td>
+                </tr>`,
+              )}
+            </tbody>
+          </table>`,
+      ),
+    );
+  });
+
+  app.post("/community/:id/:action{remove|restore}", async (c) => {
+    const id = Id.safeParse(c.req.param("id"));
+    if (!id.success) return c.notFound();
+    if (!(await setRemoved(db, id.data, c.req.param("action") === "remove"))) return c.notFound();
+    onRecipesChanged();
+    return c.redirect("/admin/community", 303);
+  });
+
+  app.get("/ingredients", async (c) => {
+    const rows = await listUnreviewed(db);
+    const names = await ingredientNames(db);
+    const boxes = <T extends string>(name: string, options: readonly T[], checked: T[]) =>
+      options.map(
+        (option) =>
+          html`<label><input type="checkbox" name="${name}" value="${option}" ${checked.includes(option) ? "checked" : ""} /> ${label(option)}</label>`,
+      );
+    return c.html(
+      page(
+        "New ingredients",
+        html`${sections("ingredients")}<h1>New ingredients</h1>
+          <p class="meta">${rows.length} added by imports and not checked yet. They are in use already: fix the flags, then approve, or merge one into an ingredient the list had.</p>
+          <datalist id="names">${names.map((n) => html`<option value="${n.name}"></option>`)}</datalist>
+          ${rows.map(
+            ({
+              ingredient: i,
+              recipe_id,
+            }) => html`<form class="fix" method="post" action="/admin/ingredients/${i.id}">
+              <h2>${i.name}</h2>
+              <p class="meta">${i.aliases.length > 0 ? `Also called ${i.aliases.join(", ")}. ` : ""}${recipe_id ? "Added by a household's recipe import." : ""}</p>
+              <div class="row">
+                <label>Category <select name="category">${IngredientCategory.options.map((o) => html`<option ${o === i.category ? "selected" : ""}>${o}</option>`)}</select></label>
+                <label>Unit <select name="default_unit">${Unit.options.map((o) => html`<option ${o === i.default_unit ? "selected" : ""}>${o}</option>`)}</select></label>
+                <label>Grams per piece <input type="number" step="0.01" min="0" name="grams_per_unit" value="${i.grams_per_unit ?? ""}" /></label>
+              </div>
+              <fieldset><legend>Allergens</legend>${boxes("allergens", Allergen.options, i.allergens)}</fieldset>
+              <fieldset><legend>Diet flags</legend>${boxes("contains", DietFlag.options, i.contains)}</fieldset>
+              <div class="row">
+                <button name="action" value="approve">Save and approve</button>
+                <span class="meta">or merge into</span>
+                <input list="names" name="into" placeholder="ingredient name" />
+                <button class="mark" name="action" value="merge">Merge</button>
+              </div>
+            </form>`,
+          )}`,
+      ),
+    );
+  });
+
+  app.post("/ingredients/:id", async (c) => {
+    const id = Id.safeParse(c.req.param("id"));
+    if (!id.success) return c.notFound();
+    const form = await c.req.parseBody({ all: true });
+    const list = (value: unknown) =>
+      (Array.isArray(value) ? value : value ? [value] : []).map(String);
+    if (form.action === "merge") {
+      const name = String(form.into ?? "").trim();
+      const target = (await ingredientNames(db)).find((n) => n.name === name);
+      if (!target) return c.text(`No ingredient is called "${name}".`, 400);
+      if (!(await mergeIngredient(db, id.data, target.id))) return c.notFound();
+      onRecipesChanged();
+      return c.redirect("/admin/ingredients", 303);
+    }
+    const category = IngredientCategory.safeParse(form.category);
+    const unit = Unit.safeParse(form.default_unit);
+    const allergens = list(form.allergens).filter(
+      (a) => Allergen.safeParse(a).success,
+    ) as Allergen[];
+    const contains = list(form.contains).filter((d) => DietFlag.safeParse(d).success) as DietFlag[];
+    const grams = Number(form.grams_per_unit);
+    if (!category.success || !unit.success) return c.text("category and unit are needed", 400);
+    if (unit.data === "piece" && !(grams > 0)) {
+      return c.text("A counted ingredient needs its grams per piece.", 400);
+    }
+    const saved = await approveIngredient(db, id.data, {
+      category: category.data,
+      default_unit: unit.data,
+      grams_per_unit: grams > 0 ? grams : null,
+      allergens,
+      contains,
+    });
+    if (!saved) return c.notFound();
+    onRecipesChanged();
+    return c.redirect("/admin/ingredients", 303);
   });
 
   return app;

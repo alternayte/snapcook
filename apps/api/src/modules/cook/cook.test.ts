@@ -174,6 +174,35 @@ test("finishing a cook takes what it used from the pantry, once", async () => {
   expect(history.cooks).toMatchObject([{ id: cook.id, rating: 2 }]);
 });
 
+test("removing a finished cook puts back what it used, or only deletes it when asked", async () => {
+  const { user, riceItem, peppers, output, cook, adaptationId } = await kitchen("undo@example.com");
+  const deductions = [{ ...output.deductions[0], quantity: 500 }, output.deductions[1]];
+  await call(user, "POST", `/cooks/${cook.id}/finish`, { deductions });
+  expect((await pantry(user)).map((i) => i.id)).toEqual([peppers.id]);
+
+  const restore = (await (await call(user, "GET", `/cooks/${cook.id}/restore`)).json()) as {
+    lines: { display_name: string; quantity: number; unit: string }[];
+  };
+  expect(restore.lines).toEqual([
+    { display_name: "rice", quantity: 500, unit: "g" },
+    { display_name: "bell peppers", quantity: 1, unit: "piece" },
+  ]);
+  expect((await call(user, "DELETE", `/cooks/${cook.id}`)).status).toBe(204);
+  // The used-up rice comes back as it was; the peppers get their one back.
+  const after = await pantry(user);
+  expect(after.find((i) => i.id === riceItem.id)).toMatchObject({ quantity: 500, unit: "g" });
+  expect(after.find((i) => i.id === peppers.id)?.quantity).toBe(3);
+  expect((await call(user, "GET", `/cooks/${cook.id}`)).status).toBe(404);
+
+  // Removing without restoring leaves the pantry alone.
+  const second = (await (
+    await call(user, "POST", "/cooks", { adaptation_id: adaptationId })
+  ).json()) as CookView;
+  await call(user, "POST", `/cooks/${second.id}/finish`, { deductions: [output.deductions[1]] });
+  expect((await call(user, "DELETE", `/cooks/${second.id}?restore=false`)).status).toBe(204);
+  expect((await pantry(user)).find((i) => i.id === peppers.id)?.quantity).toBe(2);
+});
+
 test("skipping the update ends the cook and leaves the pantry as it was", async () => {
   const { user, cook } = await kitchen("skip@example.com");
   const done = (await (

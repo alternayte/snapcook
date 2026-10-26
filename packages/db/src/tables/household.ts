@@ -6,6 +6,7 @@ import {
   DietStyle,
   Effort,
   type ImportDraft,
+  ImportError,
   ImportStatus,
   Location,
   MemberRole,
@@ -246,10 +247,12 @@ export const recipeImports = pgTable(
       .notNull()
       .references(() => users.id),
     recipe_id: uuid().references(() => recipes.id, { onDelete: "set null" }),
+    is_edit: boolean().notNull().default(false),
     status: enumText(ImportStatus).notNull().default("reading"),
     photos: text().array().notNull().default([]),
     draft: jsonb().$type<ImportDraft>(),
-    error: text(),
+    error: enumText(ImportError),
+    problems: text().array().notNull().default([]),
     cost_usd: usd().notNull().default(0),
     created_at: createdAt(),
     updated_at: timestamptz().notNull().defaultNow(),
@@ -257,6 +260,7 @@ export const recipeImports = pgTable(
   (t) => [
     index("recipe_imports_household_created_idx").on(t.household_id, t.created_at),
     enumCheck("recipe_imports_status_check", t.status, ImportStatus.options),
+    enumCheck("recipe_imports_error_check", t.error, ImportError.options),
   ],
 );
 

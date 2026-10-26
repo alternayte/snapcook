@@ -18,6 +18,7 @@
   "dependencies": {
     "@better-auth/expo": "1.7.7",
     "@hono/zod-validator": "^0.9.1",
+    "@snapcook/authoring": "workspace:*",
     "@snapcook/db": "workspace:*",
     "@snapcook/llm": "workspace:*",
     "@snapcook/recognition": "workspace:*",

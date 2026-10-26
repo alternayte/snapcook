@@ -9,7 +9,8 @@ export type ErrorCode =
   | "unauthenticated"
   | "allowance_exceeded"
   | "adaptation_refused"
-  | "upstream_model";
+  | "upstream_model"
+  | "unavailable";
 
 /** The one shape every error response has. */
 export function fail<S extends ContentfulStatusCode>(

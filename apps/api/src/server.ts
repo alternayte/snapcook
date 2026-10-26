@@ -13,5 +13,8 @@ export function createServer(deps: AppDeps) {
     )
     .on(["GET", "POST"], "/api/auth/*", (c) => deps.auth.handler(c.req.raw))
     .route("/", createApp(deps))
-    .route("/admin", createAdmin({ db: deps.db, auth: deps.auth }));
+    .route(
+      "/admin",
+      createAdmin({ db: deps.db, auth: deps.auth, onRecipesChanged: deps.corpus?.invalidate }),
+    );
 }

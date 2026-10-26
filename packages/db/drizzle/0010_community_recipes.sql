@@ -3,14 +3,17 @@ CREATE TABLE "recipe_imports" (
 	"household_id" uuid NOT NULL,
 	"user_id" uuid NOT NULL,
 	"recipe_id" uuid,
+	"is_edit" boolean DEFAULT false NOT NULL,
 	"status" text DEFAULT 'reading' NOT NULL,
 	"photos" text[] DEFAULT '{}' NOT NULL,
 	"draft" jsonb,
 	"error" text,
+	"problems" text[] DEFAULT '{}' NOT NULL,
 	"cost_usd" numeric(16, 10) DEFAULT 0 NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "recipe_imports_status_check" CHECK ("recipe_imports"."status" in ('reading', 'checking', 'saving', 'done', 'failed'))
+	CONSTRAINT "recipe_imports_status_check" CHECK ("recipe_imports"."status" in ('reading', 'checking', 'saving', 'done', 'failed')),
+	CONSTRAINT "recipe_imports_error_check" CHECK ("recipe_imports"."error" in ('not_a_recipe', 'read_failed', 'checks_failed', 'save_failed'))
 );
 --> statement-breakpoint
 ALTER TABLE "usage_counters" DROP CONSTRAINT "usage_counters_meter_check";--> statement-breakpoint

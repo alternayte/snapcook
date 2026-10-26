@@ -1,11 +1,26 @@
 {
   "extends": "../../tsconfig.base.json",
-  "compilerOptions": { "outDir": "dist", "rootDir": "src", "types": ["bun"] },
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    "types": ["bun"]
+  },
   "include": ["src"],
   "references": [
-    { "path": "../../packages/schema" },
-    { "path": "../../packages/db" },
-    { "path": "../../packages/llm" },
-    { "path": "../../packages/recognition" }
+    {
+      "path": "../../packages/authoring"
+    },
+    {
+      "path": "../../packages/schema"
+    },
+    {
+      "path": "../../packages/db"
+    },
+    {
+      "path": "../../packages/llm"
+    },
+    {
+      "path": "../../packages/recognition"
+    }
   ]
 }

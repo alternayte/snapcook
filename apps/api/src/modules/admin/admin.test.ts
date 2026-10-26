@@ -110,3 +110,70 @@ test("a form posted from another site is refused", async () => {
   });
   expect(res.status).toBe(403);
 });
+
+test("merging an ingredient moves every line that names it, and its name becomes an alias", async () => {
+  const [paste, curry, tomato] = await db
+    .insert(schema.ingredients)
+    .values([
+      { name: "red curry paste", category: "sauce", default_unit: "g", reviewed: false },
+      { name: "thai red curry paste", category: "sauce", default_unit: "g" },
+      { name: "tomato", category: "vegetable", default_unit: "g" },
+    ])
+    .returning();
+  if (!paste || !curry || !tomato || !version) throw new Error("no rows");
+  await db.insert(schema.recipeIngredients).values({
+    recipe_version_id: version.id,
+    ingredient_id: paste.id,
+    quantity: 30,
+    unit: "g",
+    role: "supporting",
+    position: 9,
+  });
+  await db.insert(schema.ingredientSubstitutes).values([
+    { ingredient_id: paste.id, substitute_id: tomato.id, context: "general" },
+    { ingredient_id: curry.id, substitute_id: paste.id, context: "general" },
+  ]);
+  const { signUpWithHousehold, server } = createTestServer(db);
+  const headers = await signUpWithHousehold("merge@example.com");
+  const added = await server.request("/api/v1/pantry/items", {
+    method: "POST",
+    headers: { ...headers, "content-type": "application/json" },
+    body: JSON.stringify({ text: "red curry paste 100g", location: "fridge" }),
+  });
+  expect(added.status).toBe(201);
+  const me = (await (await server.request("/api/v1/me", { headers })).json()) as {
+    household: { id: string };
+  };
+  const ofHousehold = eq(schema.householdProfiles.household_id, me.household.id);
+  await db
+    .update(schema.householdProfiles)
+    .set({ dislikes: [paste.id, curry.id] })
+    .where(ofHousehold);
+
+  const { mergeIngredient } = await import("./queries");
+  expect(await mergeIngredient(db, paste.id, curry.id)).toBe(true);
+
+  const lines = await db
+    .select({ id: schema.recipeIngredients.ingredient_id })
+    .from(schema.recipeIngredients)
+    .where(eq(schema.recipeIngredients.position, 9));
+  expect(lines).toEqual([{ id: curry.id }]);
+  const items = await db
+    .select({ id: schema.pantryItems.ingredient_id })
+    .from(schema.pantryItems)
+    .where(eq(schema.pantryItems.household_id, me.household.id));
+  expect(items).toEqual([{ id: curry.id }]);
+  // The stand-in moves over; one that would name the ingredient itself is dropped.
+  const swaps = await db.select().from(schema.ingredientSubstitutes);
+  expect(swaps.map((s) => [s.ingredient_id, s.substitute_id])).toEqual([[curry.id, tomato.id]]);
+  const [profile] = await db.select().from(schema.householdProfiles).where(ofHousehold);
+  expect(profile?.dislikes).toEqual([curry.id]);
+  const [kept] = await db
+    .select()
+    .from(schema.ingredients)
+    .where(eq(schema.ingredients.id, curry.id));
+  expect(kept?.aliases).toEqual(["red curry paste"]);
+  expect(
+    await db.select().from(schema.ingredients).where(eq(schema.ingredients.id, paste.id)),
+  ).toEqual([]);
+});
