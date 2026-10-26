@@ -30,4 +30,6 @@ The public repo for SnapCook: a Bun workspace that holds an Expo app, a Hono API
 
 ## Domain words
 
-None yet.
+- official recipe: a recipe the app ships with, written and checked by the corpus pipeline. Avoid: built-in recipe, curated recipe.
+- community recipe: a household recipe that its household shared to the public list. Avoid: user-submitted recipe, public recipe.
+- household recipe: a recipe one household imported and owns, private unless shared; its chip label is "Mine". Avoid: custom recipe, user recipe, private recipe.
