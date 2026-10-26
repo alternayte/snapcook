@@ -164,12 +164,7 @@ function Pantry({ householdId }: { householdId: string }) {
           .map((place) => ({ place, items: pantry.data.filter((item) => item.location === place) }))
           .filter((group) => group.items.length > 0)
           .map((group, index) => (
-            <Card
-              key={group.place}
-              tilt={index % 2 === 0 ? 0.5 : -0.5}
-              delay={index * 160}
-              className="gap-1"
-            >
+            <Card key={group.place} tilt={index % 2 === 0 ? 0.5 : -0.5} className="gap-1">
               <Label className={index % 2 === 0 ? "bg-mustard" : "bg-sage"}>
                 <Text variant="label">{t(`location.${group.place}`)}</Text>
               </Label>

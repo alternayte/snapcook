@@ -1,6 +1,6 @@
 import { steps } from "react-native-reanimated";
 
-/** How long one pose is held. Every movement in the app is a whole number of poses. */
+/** How long one pose is held. Ornaments (stickers, labels, presses) move in whole poses. */
 export const FRAME_MS = 160;
 
 const pose = (rotate: number, x = 0, y = 0) => ({
@@ -20,22 +20,15 @@ export const boil = (angle: number) => ({
   animationIterationCount: "infinite" as const,
 });
 
-/** A card dropped onto the page: five poses, a small overshoot, then its resting tilt. */
-export const drop = (tilt: number, delayMs = 0) => ({
+/** A card laid on the page: a short smooth settle into its resting tilt. Content never moves in
+ * held poses, because large stepped jumps read as dropped frames, not as stop motion. */
+export const settle = (tilt: number) => ({
   animationName: {
-    from: {
-      opacity: 0,
-      transform: [{ translateY: -40 }, { rotate: `${tilt - 8}deg` }, { scale: 1.08 }],
-    },
-    "60%": {
-      opacity: 1,
-      transform: [{ translateY: 4 }, { rotate: `${tilt + 2}deg` }, { scale: 0.98 }],
-    },
-    to: { opacity: 1, transform: [{ translateY: 0 }, { rotate: `${tilt}deg` }, { scale: 1 }] },
+    from: { opacity: 0, transform: [{ translateY: 6 }, { rotate: `${tilt}deg` }] },
+    to: { opacity: 1, transform: [{ translateY: 0 }, { rotate: `${tilt}deg` }] },
   },
-  animationDuration: FRAME_MS * 5,
-  animationDelay: delayMs,
-  animationTimingFunction: steps(5, "jump-none"),
+  animationDuration: 180,
+  animationTimingFunction: "ease-out" as const,
   animationFillMode: "both" as const,
 });
 

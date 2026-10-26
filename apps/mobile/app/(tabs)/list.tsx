@@ -78,12 +78,7 @@ function List({ householdId }: { householdId: string }) {
           .map((aisle) => ({ aisle, lines: items.filter((item) => item.aisle === aisle) }))
           .filter((group) => group.lines.length > 0)
           .map((group, index) => (
-            <Card
-              key={group.aisle}
-              tilt={index % 2 === 0 ? 0.5 : -0.5}
-              delay={index * 160}
-              className="gap-1"
-            >
+            <Card key={group.aisle} tilt={index % 2 === 0 ? 0.5 : -0.5} className="gap-1">
               <Label className={index % 2 === 0 ? "bg-mustard" : "bg-sage"}>
                 <Text variant="label">{t(`aisle.${group.aisle}`)}</Text>
               </Label>

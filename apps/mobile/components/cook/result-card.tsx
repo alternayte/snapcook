@@ -23,12 +23,7 @@ export function ResultCard({ card, names, index }: Props) {
   return (
     <Link href={`/recipe/${card.recipe_id}`} asChild>
       <Pressable aria-label={t("cook.card.open", { title: card.title })}>
-        <Card
-          tape
-          tilt={index % 2 === 0 ? -1.2 : 1}
-          delay={index * 160}
-          className="gap-2 p-2.5 pb-4"
-        >
+        <Card tape tilt={index % 2 === 0 ? -1.2 : 1} className="gap-2 p-2.5 pb-4">
           {card.image ? (
             <View>
               <Image

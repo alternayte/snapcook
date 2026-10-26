@@ -3,7 +3,7 @@ import { type ReactNode, useContext } from "react";
 import { ScrollView, View, type ViewProps } from "react-native";
 import Animated, { useReducedMotion } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { drop } from "@/lib/motion";
+import { settle } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
 /** The page every screen sits on. */
@@ -41,25 +41,15 @@ type CardProps = ViewProps & {
   /** Resting tilt in degrees. */
   tilt?: number;
   tape?: boolean;
-  /** Delay before the card is dropped onto the page, in milliseconds. */
-  delay?: number;
 };
 
 /** A piece of paper stuck on the page: slightly tilted, with a soft shadow. */
-export function Card({
-  tilt = -1,
-  tape = false,
-  delay = 0,
-  className,
-  style,
-  children,
-  ...props
-}: CardProps) {
+export function Card({ tilt = -1, tape = false, className, style, children, ...props }: CardProps) {
   const still = useReducedMotion();
   return (
     // The moving layer carries no classes: class names do not reach an animated view on the web.
     <Animated.View
-      style={[style, still ? { transform: [{ rotate: `${tilt}deg` }] } : drop(tilt, delay)]}
+      style={[style, still ? { transform: [{ rotate: `${tilt}deg` }] } : settle(tilt)]}
     >
       <View
         className={cn("rounded-paper bg-card p-4 shadow-md shadow-ink/30", className)}

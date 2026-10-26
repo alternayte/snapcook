@@ -37,7 +37,6 @@ function Saved({ householdId }: { householdId: string }) {
             <Pressable>
               <Card
                 tilt={index % 2 === 0 ? -0.8 : 0.8}
-                delay={index * 160}
                 className="flex-row items-center gap-3 p-2.5"
               >
                 {recipe.image ? (
