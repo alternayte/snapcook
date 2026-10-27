@@ -94,7 +94,7 @@ export const householdInvites = pgTable("household_invites", {
     .references(() => households.id, { onDelete: "cascade" }),
   code: text().notNull().unique(),
   expires_at: timestamptz().notNull(),
-  used_by: uuid().references(() => users.id),
+  used_by: uuid().references(() => users.id, { onDelete: "set null" }),
 });
 
 export const householdProfiles = pgTable(
@@ -159,9 +159,7 @@ export const snaps = pgTable(
     household_id: uuid()
       .notNull()
       .references(() => households.id, { onDelete: "cascade" }),
-    user_id: uuid()
-      .notNull()
-      .references(() => users.id),
+    user_id: uuid().references(() => users.id, { onDelete: "set null" }),
     location: enumText(Location).notNull(),
     storage_path: text().notNull(),
     status: enumText(SnapStatus).notNull().default("queued"),
@@ -219,9 +217,7 @@ export const cookSessions = pgTable(
     household_id: uuid()
       .notNull()
       .references(() => households.id, { onDelete: "cascade" }),
-    user_id: uuid()
-      .notNull()
-      .references(() => users.id),
+    user_id: uuid().references(() => users.id, { onDelete: "set null" }),
     adaptation_id: uuid()
       .notNull()
       .references(() => adaptations.id),
@@ -243,9 +239,7 @@ export const recipeImports = pgTable(
     household_id: uuid()
       .notNull()
       .references(() => households.id, { onDelete: "cascade" }),
-    user_id: uuid()
-      .notNull()
-      .references(() => users.id),
+    user_id: uuid().references(() => users.id, { onDelete: "set null" }),
     recipe_id: uuid().references(() => recipes.id, { onDelete: "set null" }),
     is_edit: boolean().notNull().default(false),
     status: enumText(ImportStatus).notNull().default("reading"),

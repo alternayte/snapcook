@@ -75,7 +75,14 @@ export function createApp(deps: AppDeps) {
     return next();
   });
 
-  const signedIn = new Hono<SessionEnv>().use(session).route("/", sessionRoutes(db, ownerEmails));
+  const signedIn = new Hono<SessionEnv>().use(session).route(
+    "/",
+    sessionRoutes(db, ownerEmails, {
+      householdDirs: [deps.snaps.snapDir, deps.imports.photoDir],
+      imageDir,
+      onRecipesChanged: corpus.invalidate,
+    }),
+  );
   const inHousehold = new Hono<HouseholdEnv>()
     .use(session, household)
     .route("/", householdRoutes(db, llm, matcher))

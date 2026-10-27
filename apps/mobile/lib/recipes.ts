@@ -1,8 +1,15 @@
-import type { BrowseQuery, BrowseResponse, ImportDraft, ImportView } from "@snapcook/schema";
+import type {
+  BrowseQuery,
+  BrowseResponse,
+  ImportDraft,
+  ImportSummary,
+  ImportView,
+} from "@snapcook/schema";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { File as DeviceFile } from "expo-file-system";
 import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
 import type { ImagePickerAsset } from "expo-image-picker";
+import { useEffect, useRef } from "react";
 import { Platform } from "react-native";
 import { api, unwrap } from "@/lib/api";
 import type { ShoppingList } from "@/lib/list";
@@ -97,8 +104,43 @@ export function useStartImport() {
       return unwrap<{ import_id: string }>(api.imports.$post({ form: { photo } }));
     },
     // The count of imports left is part of the session answer.
-    onSettled: () => client.invalidateQueries({ queryKey: ["me"] }),
+    onSettled: () =>
+      Promise.all([
+        client.invalidateQueries({ queryKey: ["me"] }),
+        client.invalidateQueries({ queryKey: ["imports"] }),
+      ]),
   });
+}
+
+type OpenImport = Omit<ImportSummary, "created_at"> & { created_at: string };
+
+/**
+ * The household's imports in progress, asked about again while one is being read or saved. When
+ * one leaves the list it has become a recipe, so the recipe lists are read again.
+ */
+export function useImports(enabled = true) {
+  const client = useQueryClient();
+  const imports = useQuery({
+    queryKey: ["imports"],
+    enabled,
+    refetchInterval: (query) =>
+      query.state.data?.some((i) => i.status === "reading" || i.status === "saving")
+        ? POLL_MS
+        : false,
+    queryFn: async () => (await unwrap<{ imports: OpenImport[] }>(api.imports.$get())).imports,
+  });
+  const saving = useRef(new Set<string>());
+  useEffect(() => {
+    if (!imports.data) return;
+    const open = new Set(imports.data.map((i) => i.id));
+    const finished = [...saving.current].filter((id) => !open.has(id));
+    saving.current = new Set(imports.data.filter((i) => i.status === "saving").map((i) => i.id));
+    if (finished.length === 0) return;
+    client.invalidateQueries({ queryKey: ["browse"] });
+    client.invalidateQueries({ queryKey: ["recipe"] });
+    client.invalidateQueries({ queryKey: ["adaptation"] });
+  }, [imports.data, client]);
+  return imports;
 }
 
 /** One import, asked about again while it is being read or saved. */
@@ -113,24 +155,33 @@ export function useImport(id: string) {
   });
 }
 
-export function useSubmitImport(id: string) {
+/** `onSent` runs once the server has the recipe, before the screen changes to show it saving. */
+export function useSubmitImport(id: string, onSent: () => void) {
   const client = useQueryClient();
   return useMutation({
     mutationFn: (draft: ImportDraft) =>
       unwrap<ImportView>(api.imports[":id"].$put({ param: { id }, json: { draft } })),
-    onSuccess: (view) => client.setQueryData(["import", id], view),
+    onSuccess: (view) => {
+      onSent();
+      client.setQueryData(["import", id], view);
+      return client.invalidateQueries({ queryKey: ["imports"] });
+    },
   });
 }
 
 export function useDiscardImport(id: string) {
+  const client = useQueryClient();
   return useMutation({
     mutationFn: () => unwrap<undefined>(api.imports[":id"].$delete({ param: { id } })),
+    onSettled: () => client.invalidateQueries({ queryKey: ["imports"] }),
   });
 }
 
 export function useStartEdit() {
+  const client = useQueryClient();
   return useMutation({
     mutationFn: (recipeId: string) =>
       unwrap<{ import_id: string }>(api.recipes[":recipeId"].edit.$post({ param: { recipeId } })),
+    onSettled: () => client.invalidateQueries({ queryKey: ["imports"] }),
   });
 }

@@ -83,8 +83,8 @@ export type CookedRow = {
   finished_at: string | null;
   rating: number | null;
   servings: number;
-  /** Who cooked it. */
-  cook: string;
+  /** Who cooked it. Null once that person deleted their account. */
+  cook: string | null;
   /** Whether the machine was used. */
   machine: boolean;
 };

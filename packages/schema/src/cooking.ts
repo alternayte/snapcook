@@ -106,7 +106,8 @@ export type Adaptation = z.infer<typeof Adaptation>;
 export const CookSession = z.object({
   id: Id,
   household_id: Id,
-  user_id: Id,
+  /** Who cooked. Null once that person deleted their account. */
+  user_id: Id.nullable(),
   adaptation_id: Id,
   started_at: z.date(),
   finished_at: z.date().nullable(),

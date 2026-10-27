@@ -47,7 +47,8 @@ export type ImportError = z.infer<typeof ImportError>;
 export const RecipeImport = z.object({
   id: Id,
   household_id: Id,
-  user_id: Id,
+  /** Who added it. Null once that person deleted their account. */
+  user_id: Id.nullable(),
   /** The recipe being edited, or the recipe this import made. Null before an import is saved. */
   recipe_id: Id.nullable(),
   /** True when this changes an existing recipe instead of adding one. */
@@ -84,6 +85,18 @@ export const ImportView = z.object({
   }),
 });
 export type ImportView = z.infer<typeof ImportView>;
+
+/** An import that has not ended as a recipe yet, as the list of imports in progress shows it. */
+export const ImportSummary = z.object({
+  id: Id,
+  status: ImportStatus,
+  /** The title read from the images. Null while they are being read. */
+  title: z.string().nullable(),
+  error: ImportError.nullable(),
+  editing: z.boolean(),
+  created_at: z.date(),
+});
+export type ImportSummary = z.infer<typeof ImportSummary>;
 
 export const BrowseFilter = z.enum(["official", "community", "household", "saved"]);
 export type BrowseFilter = z.infer<typeof BrowseFilter>;

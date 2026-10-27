@@ -89,6 +89,8 @@ export const Recipe = z.object({
   shared_at: z.date().nullable(),
   /** When the admin took it off the community list. The household keeps it. */
   removed_at: z.date().nullable(),
+  /** When its household was deleted while other households used it. Its household_id is then null. */
+  orphaned_at: z.date().nullable(),
 });
 export type Recipe = z.infer<typeof Recipe>;
 

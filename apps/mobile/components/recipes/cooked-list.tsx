@@ -22,6 +22,11 @@ function weekOf(at: Date) {
 function Row({ cook }: { cook: CookedRow }) {
   const t = useT();
   const intl = useIntl();
+  const date = intl.formatDate(cook.started_at, {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
   return (
     <Link href={`/cook/${cook.id}`} asChild>
       <Pressable className="flex-row items-center gap-3 border-b border-b-hairline border-ink/30 py-2.5">
@@ -37,14 +42,12 @@ function Row({ cook }: { cook: CookedRow }) {
         <View className="flex-1 gap-0.5">
           <Text variant="strong">{cook.title}</Text>
           <Text variant="small">
-            {t("cooked.by", {
-              date: intl.formatDate(cook.started_at, {
-                weekday: "short",
-                day: "numeric",
-                month: "short",
-              }),
-              cook: cook.cook,
-            })}
+            {cook.cook === null
+              ? date
+              : t("cooked.by", {
+                  date,
+                  cook: cook.cook,
+                })}
           </Text>
         </View>
         <View className="items-end gap-1">

@@ -38,7 +38,7 @@ type Display = Pick<
   SuggestionCard,
   "recipe_id" | "title" | "cuisine" | "time_total_min" | "time_active_min" | "difficulty" | "image"
 >;
-type Owner = Pick<Recipe, "household_id" | "shared_at" | "removed_at">;
+type Owner = Pick<Recipe, "household_id" | "shared_at" | "removed_at" | "orphaned_at">;
 export type Loaded = Corpus & {
   display: Map<string, Display>;
   /** Who owns each recipe version, to decide who may see it. */
@@ -69,6 +69,7 @@ export function createCorpusReader(db: Db) {
           household_id: recipes.household_id,
           shared_at: recipes.shared_at,
           removed_at: recipes.removed_at,
+          orphaned_at: recipes.orphaned_at,
         },
         suitability: recipeDeviceVariants.suitability,
         image: recipeImages.file,

@@ -29,7 +29,15 @@ function parseAmount(text: string) {
     : Math.round(value * 100) / 100;
 }
 
+/** Leaves the import screen. The import carries on at the server. */
+function useLeave() {
+  const router = useRouter();
+  return () => (router.canGoBack() ? router.back() : router.replace("/(tabs)/recipes"));
+}
+
 function Waiting({ title, note }: { title: string; note: string }) {
+  const t = useT();
+  const leave = useLeave();
   return (
     <Page>
       <View className="flex-1 items-center justify-center gap-4 pt-24">
@@ -40,6 +48,9 @@ function Waiting({ title, note }: { title: string; note: string }) {
         <Text variant="hand" className="text-center">
           {note}
         </Text>
+        <Button variant="paper" className="self-center" onPress={leave}>
+          <Text>{t("import.leave")}</Text>
+        </Button>
       </View>
     </Page>
   );
@@ -156,8 +167,8 @@ function LineEditor({ line, isNew, onChange, onRemove }: LineProps) {
 
 function Check({ view }: { view: ImportView & { draft: ImportDraft } }) {
   const t = useT();
-  const router = useRouter();
-  const submit = useSubmitImport(view.id);
+  const leave = useLeave();
+  const submit = useSubmitImport(view.id, leave);
   const discard = useDiscardImport(view.id);
   const { ingredients: firstLines, steps: firstSteps, ...firstFields } = view.draft;
   const [fields, setFields] = useState(firstFields);
@@ -384,12 +395,7 @@ function Check({ view }: { view: ImportView & { draft: ImportDraft } }) {
       <Button
         variant="quiet"
         disabled={discard.isPending}
-        onPress={() =>
-          discard.mutate(undefined, {
-            onSuccess: () =>
-              router.canGoBack() ? router.back() : router.replace("/(tabs)/recipes"),
-          })
-        }
+        onPress={() => discard.mutate(undefined, { onSuccess: leave })}
       >
         <Text>{t("import.discard")}</Text>
       </Button>
@@ -402,6 +408,8 @@ export default function ImportScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const view = useImport(id);
+  const discard = useDiscardImport(id);
+  const leave = useLeave();
   const client = useQueryClient();
   const done = view.data?.status === "done" ? view.data.recipe_id : null;
   // A saved recipe or edit must show as it now is, wherever it was kept.
@@ -432,9 +440,20 @@ export default function ImportScreen() {
         <Button
           variant="paper"
           className="self-center"
-          onPress={() => router.replace("/import/new")}
+          disabled={discard.isPending}
+          onPress={() =>
+            discard.mutate(undefined, { onSuccess: () => router.replace("/import/new") })
+          }
         >
           <Text>{t("import.again")}</Text>
+        </Button>
+        <Button
+          variant="quiet"
+          className="self-center"
+          disabled={discard.isPending}
+          onPress={() => discard.mutate(undefined, { onSuccess: leave })}
+        >
+          <Text>{t("import.discard")}</Text>
         </Button>
       </View>
     </Page>

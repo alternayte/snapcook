@@ -24,6 +24,13 @@ export const en = {
   "auth.password": "Password",
   "auth.password.rule": "Use 10 characters or more.",
   "auth.signOut": "Sign out",
+  "account.delete": "Delete my account",
+  "account.delete.owner":
+    "This deletes your account and your household: its pantry, list, cooks and your own recipes. A recipe you shared that another household uses stays on the community list.",
+  "account.delete.member":
+    "This deletes your account. The household keeps its pantry, list and cooks.",
+  "account.delete.submit": "Delete for good",
+  "account.delete.hasMembers": "Remove the other members first. Then you can delete your account.",
 
   "onboarding.household.title": "Name your household",
   "onboarding.household.note": "everyone you cook with shares it",
@@ -84,7 +91,7 @@ export const en = {
   "effort.normal": "Normal",
 
   "tabs.pantry": "Pantry",
-  "tabs.household": "Household",
+  "tabs.household": "Home",
   "tabs.cook": "Cook",
 
   "cook.title": "What can we cook tonight?",
@@ -370,9 +377,9 @@ export const en = {
   "import.image.remove": "Image {number} · tap to remove",
   "import.left": "{left, plural, one {# import} other {# imports}} left this month",
   "import.reading": "Reading the recipe…",
-  "import.reading.note": "this takes a little while",
+  "import.reading.note": "you can leave, it shows under Recipes when it is ready to check",
   "import.saving": "Writing it up…",
-  "import.saving.note": "rewording, checking, fitting the machine and drawing it",
+  "import.saving.note": "you can leave, it shows under Recipes when it is done",
   "import.check.title": "Check what we read",
   "import.check.note": "fix anything we got wrong",
   "import.edit.title": "Edit the recipe",
@@ -405,6 +412,14 @@ export const en = {
   "import.failed.checks_failed": "The recipe did not pass our checks:",
   "import.failed.save_failed": "Saving went wrong. Try again.",
   "import.again": "Start again",
+  "import.leave": "Back to recipes",
+  "imports.title": "Being added",
+  "imports.untitled": "Recipe from photos",
+  "imports.status.reading": "Reading…",
+  "imports.status.checking": "Ready to check",
+  "imports.status.saving": "Writing it up…",
+  "imports.status.done": "Added",
+  "imports.status.failed": "Did not work",
 } as const;
 
 export type MessageId = keyof typeof en;

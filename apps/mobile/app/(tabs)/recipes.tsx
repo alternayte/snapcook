@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { FlatList, ScrollView, View } from "react-native";
 import { BrowseCard } from "@/components/recipes/browse-card";
 import { CookedList } from "@/components/recipes/cooked-list";
+import { OpenImports } from "@/components/recipes/open-imports";
 import { Label, Page } from "@/components/scrap/paper";
 import { Failed, Loading } from "@/components/scrap/status";
 import { Sticker } from "@/components/scrap/sticker";
@@ -80,6 +81,7 @@ function Recipes({ householdId }: { householdId: string }) {
           <Text>{t("recipes.add")}</Text>
         </Button>
       </Link>
+      <OpenImports />
       <View className="flex-row flex-wrap gap-2">
         {SOURCES.map((value, index) => (
           <Chip

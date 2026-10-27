@@ -16,6 +16,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { fail, type HouseholdEnv, type SessionEnv } from "../../http";
 import { entitlements } from "../billing/usage";
+import { type AccountFiles, deleteAccount } from "./account";
 import {
   createHousehold,
   membership,
@@ -37,9 +38,23 @@ async function me(db: Db, user: SessionEnv["Variables"]["user"]): Promise<Me> {
 }
 
 /** Routes that need a signed-in user but not a household. */
-export function sessionRoutes(db: Db, ownerEmails: string[]) {
+export function sessionRoutes(
+  db: Db,
+  ownerEmails: string[],
+  account: AccountFiles & { onRecipesChanged?: () => void },
+) {
   return new Hono<SessionEnv>()
     .get("/me", async (c) => c.json(await me(db, c.var.user)))
+    .delete("/me", async (c) => {
+      const { outcome, recipesChanged } = await deleteAccount(db, c.var.user.id, account);
+      if (outcome === "has_members") {
+        return fail(c, 409, "forbidden", "Remove the other members of the household first.", {
+          reason: "has_members",
+        });
+      }
+      if (recipesChanged) account.onRecipesChanged?.();
+      return c.body(null, 204);
+    })
     .post(
       "/household",
       zValidator("json", CreateHouseholdInput, (result, c) =>

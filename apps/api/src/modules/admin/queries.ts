@@ -31,7 +31,13 @@ export function listRecipes(db: Db, status?: RecipeStatus) {
     .from(recipes)
     .innerJoin(recipeVersions, eq(recipeVersions.id, recipes.current_version_id))
     .leftJoin(recipeDeviceVariants, eq(recipeDeviceVariants.recipe_version_id, recipeVersions.id))
-    .where(and(isNull(recipes.household_id), status ? eq(recipes.status, status) : undefined))
+    .where(
+      and(
+        isNull(recipes.household_id),
+        isNull(recipes.orphaned_at),
+        status ? eq(recipes.status, status) : undefined,
+      ),
+    )
     .orderBy(asc(recipeVersions.cuisine), asc(recipeVersions.title));
 }
 
@@ -73,20 +79,23 @@ export async function setStatus(db: Db, slug: string, status: RecipeStatus) {
 
 /** Every shared household recipe, removed ones included, newest share first. */
 export function listCommunity(db: Db) {
-  return db
-    .select({
-      id: recipes.id,
-      slug: recipes.slug,
-      title: recipeVersions.title,
-      household: households.name,
-      shared_at: recipes.shared_at,
-      removed_at: recipes.removed_at,
-    })
-    .from(recipes)
-    .innerJoin(recipeVersions, eq(recipeVersions.id, recipes.current_version_id))
-    .innerJoin(households, eq(households.id, recipes.household_id))
-    .where(isNotNull(recipes.shared_at))
-    .orderBy(desc(recipes.shared_at));
+  return (
+    db
+      .select({
+        id: recipes.id,
+        slug: recipes.slug,
+        title: recipeVersions.title,
+        household: households.name,
+        shared_at: recipes.shared_at,
+        removed_at: recipes.removed_at,
+      })
+      .from(recipes)
+      .innerJoin(recipeVersions, eq(recipeVersions.id, recipes.current_version_id))
+      // An orphaned recipe has no household left.
+      .leftJoin(households, eq(households.id, recipes.household_id))
+      .where(isNotNull(recipes.shared_at))
+      .orderBy(desc(recipes.shared_at))
+  );
 }
 
 /** Takes a recipe off the community list, or puts it back. The household keeps it either way. */
@@ -94,7 +103,7 @@ export async function setRemoved(db: Db, id: string, removed: boolean) {
   const updated = await db
     .update(recipes)
     .set({ removed_at: removed ? new Date() : null })
-    .where(and(eq(recipes.id, id), isNotNull(recipes.household_id)))
+    .where(and(eq(recipes.id, id), isNotNull(recipes.shared_at)))
     .returning({ id: recipes.id });
   return updated.length > 0;
 }

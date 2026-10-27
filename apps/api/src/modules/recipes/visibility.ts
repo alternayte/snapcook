@@ -7,11 +7,14 @@ const { recipes } = schema;
 /** The recipe statuses a household may be shown. */
 export const SERVABLE = ["auto_reviewed", "human_reviewed", "test_cooked"] as const;
 
-type Owned = Pick<Recipe, "household_id" | "shared_at" | "removed_at">;
+type Owned = Pick<Recipe, "household_id" | "shared_at" | "removed_at" | "orphaned_at">;
+
+/** An official recipe has no household and never had one. */
+const isOfficial = (recipe: Owned) => recipe.household_id === null && recipe.orphaned_at === null;
 
 /** Whether a household may see a recipe: an official one, its own, or one shared and not removed. */
 export const canSee = (recipe: Owned, householdId: string) =>
-  recipe.household_id === null ||
+  isOfficial(recipe) ||
   recipe.household_id === householdId ||
   (recipe.shared_at !== null && recipe.removed_at === null);
 
@@ -20,7 +23,7 @@ export const visibleTo = (householdId: string) =>
   and(
     inArray(recipes.status, [...SERVABLE]),
     or(
-      isNull(recipes.household_id),
+      and(isNull(recipes.household_id), isNull(recipes.orphaned_at)),
       eq(recipes.household_id, householdId),
       and(isNotNull(recipes.shared_at), isNull(recipes.removed_at)),
     ),
@@ -28,11 +31,7 @@ export const visibleTo = (householdId: string) =>
 
 /** Who wrote the recipe, as this household sees it. */
 export const sourceOf = (recipe: Owned, householdId: string): RecipeSource =>
-  recipe.household_id === null
-    ? "official"
-    : recipe.household_id === householdId
-      ? "household"
-      : "community";
+  isOfficial(recipe) ? "official" : recipe.household_id === householdId ? "household" : "community";
 
 /** For the household's own recipe, where it stands with the community. Null for any other. */
 export const sharingOf = (recipe: Owned, householdId: string) =>

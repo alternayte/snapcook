@@ -245,7 +245,7 @@ export async function cookHistory(db: Db, householdId: string) {
     .innerJoin(adaptations, eq(adaptations.id, cookSessions.adaptation_id))
     .innerJoin(recipeVersions, eq(recipeVersions.id, adaptations.recipe_version_id))
     .leftJoin(recipeImages, eq(recipeImages.recipe_version_id, recipeVersions.id))
-    .innerJoin(users, eq(users.id, cookSessions.user_id))
+    .leftJoin(users, eq(users.id, cookSessions.user_id))
     .where(eq(cookSessions.household_id, householdId))
     .orderBy(desc(cookSessions.started_at))
     .limit(HISTORY_LIMIT);

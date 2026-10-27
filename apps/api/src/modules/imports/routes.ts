@@ -8,7 +8,7 @@ import { z } from "zod";
 import { allowanceExceeded, fail, type HouseholdEnv } from "../../http";
 import { consume } from "../billing/usage";
 import { imageKind } from "../snaps/service";
-import { importView, startEdit, storeImport, submit } from "./service";
+import { importView, openImports, startEdit, storeImport, submit } from "./service";
 
 const { recipeImports } = schema;
 
@@ -64,6 +64,7 @@ export function importRoutes({ db, photoDir, enabled, enqueueRead, enqueueSave }
         return c.json({ import_id }, 201);
       },
     )
+    .get("/imports", async (c) => c.json({ imports: await openImports(db, c.var.household.id) }))
     .get("/imports/:id", idParam, async (c) => {
       const view = await importView(db, c.var.household.id, c.req.valid("param").id);
       return view ? c.json(view) : fail(c, 404, "not_found", "No such import.");

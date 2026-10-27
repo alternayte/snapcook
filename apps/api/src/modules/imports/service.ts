@@ -21,11 +21,12 @@ import {
   type Household,
   type ImportDraft,
   type ImportError,
+  type ImportSummary,
   type ImportView,
   IngredientCategory,
   RecipeDraft,
 } from "@snapcook/schema";
-import { and, asc, eq, inArray, isNull, lt, ne } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, lt, ne } from "drizzle-orm";
 import { z } from "zod";
 import { release } from "../billing/usage";
 import { amountOf, type Choices, ReadOutput, readHint } from "./read";
@@ -85,7 +86,7 @@ export async function choices(db: Db): Promise<Choices> {
     })
     .from(recipeVersions)
     .innerJoin(recipes, eq(recipes.id, recipeVersions.recipe_id))
-    .where(isNull(recipes.household_id));
+    .where(and(isNull(recipes.household_id), isNull(recipes.orphaned_at)));
   const of = (key: keyof Choices) => [...new Set(rows.map((row) => row[key]))].sort();
   return {
     cuisine: of("cuisine"),
@@ -307,6 +308,23 @@ export async function startEdit(db: Db, householdId: string, userId: string, rec
 }
 
 /** An import as the app sees it, for its household only. */
+/** The household's imports that have not become a recipe yet, newest first. */
+export async function openImports(db: Db, householdId: string): Promise<ImportSummary[]> {
+  const rows = await db
+    .select({
+      id: recipeImports.id,
+      status: recipeImports.status,
+      draft: recipeImports.draft,
+      error: recipeImports.error,
+      editing: recipeImports.is_edit,
+      created_at: recipeImports.created_at,
+    })
+    .from(recipeImports)
+    .where(and(eq(recipeImports.household_id, householdId), ne(recipeImports.status, "done")))
+    .orderBy(desc(recipeImports.created_at));
+  return rows.map(({ draft, ...row }) => ({ ...row, title: draft?.title ?? null }));
+}
+
 export async function importView(
   db: Db,
   householdId: string,

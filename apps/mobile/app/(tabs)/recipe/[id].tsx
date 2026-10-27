@@ -388,6 +388,8 @@ export default function RecipeScreen() {
   if (!recipe.data || !household) return <Loading />;
   return (
     <Recipe
+      // The screen stays mounted between recipes, so each recipe starts with fresh choices.
+      key={id}
       recipe={recipe.data}
       householdId={household.id}
       hasDevice={me.data?.profile?.devices.mc_smart ?? false}

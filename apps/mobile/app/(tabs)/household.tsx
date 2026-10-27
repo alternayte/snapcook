@@ -1,6 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useRouter } from "expo-router";
 import { View } from "react-native";
+import { DeleteAccount } from "@/components/profile/delete-account";
 import { Members } from "@/components/profile/members";
 import { ProfileForm } from "@/components/profile/profile-form";
 import { Label, Page } from "@/components/scrap/paper";
@@ -78,6 +79,7 @@ export default function HouseholdScreen() {
       <Button variant="quiet" onPress={signOut}>
         <Text>{t("auth.signOut")}</Text>
       </Button>
+      <DeleteAccount isOwner={me.data.role === "owner"} />
     </Page>
   );
 }

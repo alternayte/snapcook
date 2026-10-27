@@ -34,7 +34,8 @@ export type SnapProposal = z.infer<typeof SnapProposal>;
 export const Snap = z.object({
   id: Id,
   household_id: Id,
-  user_id: Id,
+  /** Who took the photo. Null once that person deleted their account. */
+  user_id: Id.nullable(),
   location: Location,
   storage_path: z.string(),
   status: SnapStatus,

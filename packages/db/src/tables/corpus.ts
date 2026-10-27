@@ -90,6 +90,7 @@ export const recipes = pgTable(
     household_id: uuid().references(() => households.id, { onDelete: "cascade" }),
     shared_at: timestamptz(),
     removed_at: timestamptz(),
+    orphaned_at: timestamptz(),
   },
   (t) => [
     enumCheck("recipes_status_check", t.status, RecipeStatus.options),

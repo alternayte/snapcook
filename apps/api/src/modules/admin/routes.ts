@@ -256,7 +256,7 @@ export function createAdmin({
               ${rows.map(
                 (r) => html`<tr>
                   <td><a href="/admin/recipes/${r.slug}">${r.title}</a>${r.removed_at ? html`<div class="meta mark">removed ${when(r.removed_at)}</div>` : ""}</td>
-                  <td>${r.household}</td>
+                  <td>${r.household ?? html`<span class="meta">deleted</span>`}</td>
                   <td class="wide num">${when(r.shared_at)}</td>
                   <td>
                     <form class="inline" method="post" action="/admin/community/${r.id}/${r.removed_at ? "restore" : "remove"}">
